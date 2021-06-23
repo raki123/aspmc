@@ -1,6 +1,12 @@
 # aspmc
 (algebraic) answer set counter based on a treewidth-aware cycle-breaking for normal answer set programs
 
+Clone via 
+```
+git clone --single-branch --branch=main https://github.com/raki123/aspmc.git
+```
+to avoid the download of the experimental results in branch `results`.
+
 ## Requirements
 We include a setup bash script `setup.sh` that should automatically perform all steps required to run our code. (Except for providing the c2d binary)
 
