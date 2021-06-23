@@ -1,5 +1,5 @@
-# asp2sat
-treewidth-aware reduction from asp to sat
+# aspmc
+(algebraic) answer set counter based on a treewidth-aware cycle-breaking for normal answer set programs
 
 ## Requirements
 We include a setup bash script `setup.sh` that should automatically perform all steps required to run our code. (Except for providing the c2d binary)
