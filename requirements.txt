@@ -1,3 +1,6 @@
 networkx
 tatsu
 clingo
+matplotlib
+psycopg2
+future-fstrings

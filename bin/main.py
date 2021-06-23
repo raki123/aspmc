@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.realpath(os.path.join(src_path, '../..')))
 
 src_path = os.path.realpath(os.path.join(src_path, '../../lib'))
 
-libs = ['htd_validate', 'clingoparser', 'nesthdb', 'htd', 'minic2d', 'c2d']
+libs = ['htd_validate', 'clingoparser', 'nesthdb', 'htd', 'c2d']
 
 if src_path not in sys.path:
     for lib in libs:
@@ -465,17 +465,6 @@ class Program(object):
             idx += 1
             rules[t] = []
 
-        
-        #import pydot
-        #from networkx.drawing.nx_pydot import graphviz_layout
-        #pos = graphviz_layout(tree, prog="dot")
-        #nx.draw(tree, pos = pos, with_labels=True)
-        #plt.show()
-        #for i in self._deriv:
-        #    print(i, last[i])
-        #for i in range(len(self._td.nodes)):
-        #    print(i, td_idx[i])
-
         for r in self._program:
             for a in r.head:
                 r.proven = self.new_var(f"{r}")
@@ -636,13 +625,6 @@ if __name__ == "__main__":
     program = Program(control)
     program.no_sub = no_sub
 
-    #if mode == "problog":
-    #    varMap = { name : var for  var, name in program._nameMap.items() }
-    #    qs = [ varMap[str(query.atom)] for query in queries ]
-    #    program.magic_set(qs)
-
-
-
     logger.info("   Stats Original")
     logger.info("------------------------------------------------------------")
     program._generatePrimalGraph()
@@ -666,12 +648,6 @@ if __name__ == "__main__":
     program.td_guided_clark_completion()
     logger.info("------------------------------------------------------------")
 
-    #print(weight_list)
-    #program.kCNF(3)
-    #parser = wfParse.WeightedFormulaParser()
-    #sem = wfParse.WeightedFormulaSemantics(program)
-    #wf = "#(1)"
-    #parser.parse(wf, semantics = sem)
     with open('out.cnf', mode='wb') as file_out:
         program.write_dimacs(file_out)
 
@@ -698,25 +674,11 @@ if __name__ == "__main__":
             weight_list[(varMap[atom]-1)*2 + 1][i] = semiring.zero
     logger.info("   Results")
     logger.info("------------------------------------------------------------")
-    #circ = circuit.Circuit("out.cnf.nnf")
     results = circuit.Circuit.parse_wmc("out.cnf.nnf", weight_list, zero = semiring.zero, one = semiring.one, dtype = semiring.dtype)
+    
     if mode == "asp":
         logger.info(f"The program has {int(results[0])} models")
     elif mode.startswith("problog"):
         for i, query in enumerate(queries):
             atom = str(query.atom)
             logger.info(f"{atom}: {' '*max(1,(20 - len(atom)))}{results[i]}")
-    #with open('dbg.cnf', mode='wb') as file_out:
-    #    program.write_dimacs(file_out, debug = True)
-    #logger.info("   Stats Circuit")
-    #logger.info("------------------------------------------------------------")
-    #circ = stats.Circuit(program._program, program._deriv, program._guess)
-    #circ.simp()
-    #circ.tw(opt = True)
-    #with open('out.dot', mode='wb') as file_out:
-    #    circ.to_dot(file_out)
-    #with open('out_simp.cnf', mode='wb') as file_out:
-    #    circ.to_cnf(file_out)
-    #logger.info("   Stats Simplified CNF")
-    #logger.info("------------------------------------------------------------")
-    #stats.encoding_stats('out_simp.cnf')

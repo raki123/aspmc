@@ -7,6 +7,3 @@
 [submodule "lib/htd"]
 	path = lib/htd
 	url = https://github.com/TU-Wien-DBAI/htd
-[submodule "lib/aspmc_benchmarks"]
-	path = lib/aspmc_benchmarks
-	url = https://github.com/raki123/aspmc_benchmarks
