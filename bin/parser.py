@@ -91,9 +91,9 @@ class ProblogParser(Parser):
         def block0():
             with self._choice():
                 with self._option():
-                    self._rule_()
-                with self._option():
                     self._query_()
+                with self._option():
+                    self._rule_()
                 self._error('expecting one of: normal_rule probability query query( rule')
         self._closure(block0)
 

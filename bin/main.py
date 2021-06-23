@@ -1,5 +1,4 @@
-#!/home/hecher/miniconda3/bin/python3
-##/usr/bin/env python3
+#!/usr/bin/env python3
 
 """
 Main module providing the application logic.
@@ -32,8 +31,6 @@ if src_path not in sys.path:
         sys.path.insert(0, os.path.join(src_path, lib))
 
 
-logger = logging.getLogger("asp2sat")
-logging.basicConfig(format='[%(levelname)s] %(name)s: %(message)s', level="INFO")
 
 from htd_validate.utils import hypergraph, graph
 
@@ -51,6 +48,10 @@ import stats
 import grounder
 from parser import ProblogParser
 from semantics import ProblogSemantics
+
+
+logger = logging.getLogger("aspmc")
+logging.basicConfig(format='[%(levelname)s] %(name)s: %(message)s', level="INFO")
 
 
 class Rule(object):
@@ -290,8 +291,8 @@ class Program(object):
         except:
             res = comp
             logger.error("backdoor guessing failed, returning whole component.")
-        print("backdoor comp: " + str(len(comp)))
-        print("backdoor res: " + str(len(res)))
+        logger.debug("backdoor comp: " + str(len(comp)))
+        logger.debug("backdoor res: " + str(len(res)))
         return res
 
     def backdoor_process(self, comp, backdoor):
@@ -432,7 +433,7 @@ class Program(object):
         for r in self._program:
             atoms = set(r.head)
             atoms.update(tuple(map(abs, r.body)))
-            self._graph.add_hyperedge(tuple(atoms), checkSubsumes = not self.no_sub)
+            self._graph.add_hyperedge(tuple(atoms), checkSubsumes = False)
 
     def _decomposeGraph(self):
         # Run htd
@@ -566,47 +567,82 @@ class Program(object):
         logger.debug("Parsing tree decomposition")
         td = treedecomp.TreeDecomp(tdr.num_bags, tdr.tree_width, tdr.num_orig_vertices, tdr.root, tdr.bags, tdr.adjacency_list, None)
         logger.info(f"Tree decomposition #bags: {td.num_bags} tree_width: {td.tree_width} #vertices: {td.num_orig_vertices} #leafs: {len(td.leafs)} #edges: {len(td.edges)}")
-            
+
+help_string = """
+aspmc: An Algebraic Answer Set Counter
+aspmc version 1.0.0, Jun 23, 2021
+
+python bin/main.py [-m .] [-c] [-s .] [-n] [-t] [<INPUT-FILES>]
+    --mode      -m MODE         set input mode to MODE:
+                                    * asp : take a normal answer set program as input
+                                    * problog : take a *ground* problog program as input
+    --count     -c              not only output the equivalent cnf as out.cnf but also performs (algebraic) counting of the answer sets
+                                requires the c2d binary
+    --semiring  -s SEMIRING     use the semiring specified in the python file SEMIRING.py
+                                only useful with -m problog
+    --no_pp     -n              does not perform cycle breaking and only outputs the ground underlying answer set program
+    --treewidth -t              print the treewidth of the resulting CNF
+    --help      -h              print this help and exit
+"""
+
 if __name__ == "__main__":
     control = clingoext.Control()
-    mode = sys.argv[1]
-    weights = {}
-    no_sub = False
+    mode = "asp"
+    program_files = []
+    program_str = None
+    count = False
     no_pp = False
-    if len(sys.argv) > 2 and sys.argv[2] == "-no_subset_check":
-        logger.info("   Not performing subset check when adding edges to hypergraph.")
-        no_sub = True
-        del sys.argv[2]
-    elif len(sys.argv) > 2 and sys.argv[2] == "-no_pp":
-        logger.info("   No Preprocessin")
-        no_pp = True
-        del sys.argv[2]
-    if len(sys.argv) > 2 and sys.argv[2] == "-semiring":
-        logger.info(f"   Using semiring {sys.argv[3]}.")
-        sr = sys.argv[3]
-        semiring = importlib.import_module(sr)
-        del sys.argv[2]
-        del sys.argv[2]
-    else:
-        semiring = Semiring()
-        def float_parse(f, atom = None):
-            return float(f)
-        semiring.parse = float_parse
-        semiring.one = 1.0
-        semiring.zero = 0.0
-        semiring.negate = lambda x : 1.0 - x
-        semiring.dtype = float
-    if mode == "asp":
-        program_files = sys.argv[2:]
-        program_str = None
-        if not program_files:
-            program_str = sys.stdin.read()
-    elif mode.startswith("problog"):
-        files = sys.argv[2:]
-        program_str = ""
-        if not files:
-            program_str = sys.stdin.read()
-        for path in files:
+    treewidth = False
+    semiring = Semiring()
+    def float_parse(f, atom = None):
+        return float(f)
+    semiring.parse = float_parse
+    semiring.one = 1.0
+    semiring.zero = 0.0
+    semiring.negate = lambda x : 1.0 - x
+    semiring.dtype = float
+    weights = {}
+
+    # parse the arguments
+    while len(sys.argv) > 1:
+        if sys.argv[1].startswith("-"):
+            if sys.argv[1] == "-m" or sys.argv[1] == "--mode":
+                mode = sys.argv[2]
+                if mode != "problog" and mode != "asp":
+                    logger.error("  Unknown mode: " + mode)
+                del sys.argv[1:3]
+            elif sys.argv[1] == "-c" or sys.argv[1] == "--count":
+                count = True
+                del sys.argv[1]
+            elif sys.argv[1] == "-s" or sys.argv[1] == "--semiring":
+                logger.info(f"   Using semiring {sys.argv[2]}.")
+                sr = sys.argv[2]
+                semiring = importlib.import_module(sr)
+                del sys.argv[1:3]            
+            elif sys.argv[1] == "-n" or sys.argv[1] == "--no_pp":
+                no_pp = True
+                del sys.argv[1]
+            elif sys.argv[1] == "-t" or sys.argv[1] == "--treewidth":
+                treewidth = True
+                del sys.argv[1]
+            elif sys.argv[1] == "-h" or sys.argv[1] == "--help":
+                logger.info(help_string)
+                exit(0)
+            else:
+                logger.error("  Unknown option: " + sys.argv[1])
+                exit(-1)
+        else:
+            program_files.append(sys.argv[1])
+            del sys.argv[1]
+
+
+    # parse the input 
+    if not program_files:
+        program_str = sys.stdin.read()
+    if mode == "problog":
+        if not program_str:
+            program_str = ""
+        for path in program_files:
             with open(path) as file_:
                 program_str += file_.read()
         parser = ProblogParser()
@@ -623,46 +659,43 @@ if __name__ == "__main__":
         program_files = []
     grounder.ground(control, program_str = program_str, program_files = program_files)
     program = Program(control)
-    program.no_sub = no_sub
 
+    # perform the cycle breaking
     logger.info("   Stats Original")
     logger.info("------------------------------------------------------------")
     program._generatePrimalGraph()
     program._decomposeGraph()
     logger.info("------------------------------------------------------------")
-
     if no_pp:
         with open('out.lp', mode='wb') as file_out:
             program.write_prog(file_out)
             exit(0)
-
     program.preprocess()
     logger.info("   Preprocessing Done")
     logger.info("------------------------------------------------------------")
-    
     with open('out.lp', mode='wb') as file_out:
         program.write_prog(file_out)
-    #program.clark_completion()
     logger.info("   Stats translation")
     logger.info("------------------------------------------------------------")
     program.td_guided_clark_completion()
     logger.info("------------------------------------------------------------")
-
     with open('out.cnf', mode='wb') as file_out:
         program.write_dimacs(file_out)
-
-    #logger.info("   Stats CNF")
-    #logger.info("------------------------------------------------------------")
-    #program.encoding_stats()
-    if mode != "problogwmc":
+    if treewidth:
+        logger.info("   Stats CNF")
+        logger.info("------------------------------------------------------------")
+        program.encoding_stats()
+        logger.info("------------------------------------------------------------")
+    if not count:
         exit(0)
-    logger.info("------------------------------------------------------------")
+
+    # perform the (algebraic) model counting 
     p = subprocess.Popen([os.path.join(src_path, "c2d/bin/c2d_linux"), "-smooth_all", "-reduce", "-in", "out.cnf"], stdout=subprocess.PIPE)
     p.wait()
     import circuit
     if mode == "asp":
         weight_list = [ np.array([1.0]) for _ in range(program._max*2) ]
-    elif mode.startswith("problog"):
+    else:
         query_cnt = len(queries)
         varMap = { name : var for  var, name in program._nameMap.items() }
         weight_list = [ np.full(query_cnt, semiring.one, dtype=semiring.dtype) for _ in range(program._max*2) ]
@@ -676,9 +709,10 @@ if __name__ == "__main__":
     logger.info("------------------------------------------------------------")
     results = circuit.Circuit.parse_wmc("out.cnf.nnf", weight_list, zero = semiring.zero, one = semiring.one, dtype = semiring.dtype)
     
+    # print the results
     if mode == "asp":
         logger.info(f"The program has {int(results[0])} models")
-    elif mode.startswith("problog"):
+    else:
         for i, query in enumerate(queries):
             atom = str(query.atom)
             logger.info(f"{atom}: {' '*max(1,(20 - len(atom)))}{results[i]}")

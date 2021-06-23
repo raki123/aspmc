@@ -38,13 +38,46 @@ The binary needs to be provided under `lib/c2d/bin/` as `c2d_linux` and can be d
 The basic usage is
 
 ```
-python bin/main.py <MODE> [OPTIONS] [<INPUT-FILES>]
+python bin/main.py [-m .] [-c] [-s .] [-n] [-t] [<INPUT-FILES>]
+    --mode      -m MODE         set input mode to MODE:
+                                    * asp : take a normal answer set program as input
+                                    * problog : take a *ground* problog program as input
+    --count     -c              not only output the equivalent propositional formula as out.cnf but also performs (algebraic) counting of the answer sets
+                                requires the c2d binary
+    --semiring  -s SEMIRING     use the semiring specified in the python file SEMIRING.py
+                                only useful with -m problog
+    --no_pp     -n              does not perform cycle breaking and only outputs the ground underlying answer set program
+    --treewidth -t              print the treewidth of the resulting CNF
+    --help      -h              print this help and exit
 ```
-Here, `<MODE>` must be one of
-* `asp`: read a (possibly non-ground) normal answer set program and write a cnf with the same number of models to the file `out.cnf`
-* `problog`: read a ground probabilistic program in [Problog](https://dtai.cs.kuleuven.be/problog/index.html) syntax and write a cnf with the same number of models to the file `out.cnf`
-* `problogwmc`: the same as `problog` mode, but after writing `out.cnf` we automatically use c2d (if provided by the user) to compute a d-DNNF representation of the it and compute the answers to the probabilistic queries included in the input program
 
-The following options are accepted:
-* `-no_subset_check`: can provide a performance boost for computing treedecompositions for large instances
-* `-no_pp`: only useful with mode problog. translates the problog program to an underlying answer set program, which is written to `out.lp`
+### Examples
+#### ASP example:
+```
+python bin/main.py -m asp -c
+a :- not b.
+b :- not a.
+```
+Reads the program from stdin and counts its models.
+
+```
+python bin/main.py -m asp -c test/test_cycle.lp
+```
+Reads the same program from file and counts its models.
+
+#### problog example
+```
+python bin/main.py -m problog -c
+0.5::a.
+b :- a.
+query(b).
+```
+Evaluates the given simple program over the probability semiring.
+
+```
+python bin/main.py -m problog -c -s maxplus
+0.5::a.
+b :- a.
+query(b).
+```
+Evaluates the given simple program over the MaxPlus semiring.

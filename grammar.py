@@ -8,7 +8,7 @@ GRAMMAR = '''
 
     program
         =
-        { rule | query }*
+        { query | rule }*
         ;
 
     rule
