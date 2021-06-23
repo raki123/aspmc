@@ -1,14 +1,14 @@
 class ProbabilisticRule(object):
-    def __init__(self, head, body = None, probability = None):
+    def __init__(self, head, body = None, weight = None):
         self.head = head
         self.body = body if body is not None else []
-        self.probability = probability
+        self.weight = weight
 
     def __str__(self):
         res = ""
         if self.head is not None:
-            if self.probability is not None:
-                res += f"{self.probability}::"
+            if self.weight is not None:
+                res += f"{self.weight}::"
             res += f"{str(self.head)}"
             if len(self.body) > 0:
                 res +=f":-{','.join([str(x) for x in self.body])}."
@@ -21,7 +21,7 @@ class ProbabilisticRule(object):
     def asp_string(self):
         res = ""
         if self.head is not None:
-            if self.probability is not None:
+            if self.weight is not None:
                 res += f"{{{str(self.head)}}}"
             else:
                 res += str(self.head)
@@ -70,10 +70,10 @@ class ProblogSemantics(object):
         new_program = []
         for rule in ast:
             # this ensures that all guesses are unconditional
-            if not rule.is_query() and rule.probability is not None and len(rule.body) > 0:
+            if not rule.is_query() and rule.weight is not None and len(rule.body) > 0:
                 # make a new unconditional guess
                 head = Atom(f"aux_{rule.head.predicate}", inputs = rule.head.inputs)
-                guess_rule = ProbabilisticRule(head, [], rule.probability)
+                guess_rule = ProbabilisticRule(head, [], rule.weight)
                 actual_rule = ProbabilisticRule(rule.head, rule.body + [head], None)
                 new_program += [guess_rule, actual_rule]
             else:
@@ -127,12 +127,7 @@ class ProblogSemantics(object):
         return ast
 
     def probability(self, ast):  # noqa
-        if ast == '0':
-            return ('prob', 0)
-        elif ast == '1':
-            return ('prob', 1)
-        else:
-            return ('prob', float(ast[0] + ast[1]))
+        return ('weight', ast)
 
     def query(self, ast):  # noqa
         return Query(ast[1])

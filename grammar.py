@@ -43,9 +43,7 @@ GRAMMAR = '''
 
     probability
         =
-        | '0.' /[0-9]*/
-        | '1'
-        | '0'
+        /[^:]*/
         ;
 
     query

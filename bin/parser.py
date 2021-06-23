@@ -144,15 +144,7 @@ class ProblogParser(Parser):
 
     @tatsumasu()
     def _probability_(self):  # noqa
-        with self._choice():
-            with self._option():
-                self._token('0.')
-                self._pattern('[0-9]*')
-            with self._option():
-                self._token('1')
-            with self._option():
-                self._token('0')
-            self._error('expecting one of: 0 0. 1')
+        self._pattern('[^:]*')
 
     @tatsumasu()
     def _query_(self):  # noqa
