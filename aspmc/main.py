@@ -88,6 +88,7 @@ aspmc version 1.0.7, Jan 20, 2023
 python main.py [-m .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .] [-b .] [-h] [<INPUT-FILES>]
     --mode              -m  MODE        set input mode to MODE:
                                         * asp               : take a normal answer set program as input (default)
+                                        * smodels           : take a normal answer set program in smodels format as input
                                         * optasp            : take a normal answer set program with weak constraints as input
                                         * cnf               : take an (extended) cnf as input
                                         * problog           : take a problog program as input
