@@ -149,7 +149,8 @@ def main():
     treewidth = False
     semiring_string = "aspmc.semirings.probabilistic"
     guide = "both"
-    strategy = "compilation"
+    strategy = "flexible"
+    smodels = False
 
     # parse the arguments
     while len(sys.argv) > 1:
@@ -157,9 +158,11 @@ def main():
             if sys.argv[1] == "-m" or sys.argv[1] == "--mode":
                 mode = sys.argv[2]
                 if mode != "problog" and mode != "asp" and mode != "smproblog" and mode != "meuproblog" \
-                    and mode != "mapproblog" and mode != "mpeproblog" and mode != "optasp" and mode != "cnf":
+                    and mode != "mapproblog" and mode != "mpeproblog" and mode != "optasp" and mode != "cnf" \
+                    and mode != "smodels":
                     logger.error("  Unknown mode: " + mode)
                     exit(-1)
+                smodels = mode == "smodels"
                 del sys.argv[1:3]
             elif sys.argv[1] == "-st" or sys.argv[1] == "--strategy":
                 strategy = sys.argv[2]
@@ -257,7 +260,7 @@ def main():
         else:
             cnf = CNF(string = program_str)
     else:
-        program = Program(program_str = program_str, program_files = program_files)
+        program = Program(program_str = program_str, program_files = program_files, smodels = smodels)
 
     if mode != "cnf":
         # perform the cycle breaking

@@ -88,9 +88,7 @@ class Program(object):
         clingo_control (:obj:`Control`): A clingo control object that contains parts of the program. 
             Must already be ground if no non-empty `program_str` or `program_files` are given.
     """
-    def __init__(self, clingo_control = Control(), program_str = "", program_files = []):
-        if len(program_str) > 0 or len(program_files) > 0:
-            grounder.ground(clingo_control, program_str = program_str, program_files = program_files)
+    def __init__(self, clingo_control = Control(), program_str = "", program_files = [], smodels = False):
         # the variable counter
         self._max = 0
         self._nameMap = {}
@@ -108,7 +106,72 @@ class Program(object):
         self._exactlyOneOf = set()
         # the tree decomposition of the program
         self._td = None
-        self._normalize(clingo_control)
+        if not smodels and (len(program_str) > 0 or len(program_files) > 0):
+            grounder.ground(clingo_control, program_str = program_str, program_files = program_files)
+        elif smodels:
+            if (len(program_str) > 0 and len(program_files) > 0) or len(program_files) > 0:
+                raise UnsupportedException("When instantiating a program from smodels format only one file or a program string may be given.")
+            self._parse_smodels(program_str = program_str, program_files = program_files)
+        if not smodels:
+            self._normalize(clingo_control)
+
+    def _parse_smodels(self, program_str = "", program_files = []):
+        if len(program_str) > 0:
+            lines = program_str.split('\n')
+        else:
+            with open(program_files[0], 'r') as in_file:
+                lines = in_file.readlines()
+
+        for i in range(len(lines)):
+            line = [ int(v) for v in lines[i].split(' ') ]
+            if line[0] == 0:
+                break
+            elif line[0] == 1:
+                head = [ line[1] ]
+                nr_lit = line[2]
+                nr_neg = line[3]
+                body = line[4:4+nr_lit]
+                self._max = max(head[0], self._max, max(body, default=0))
+                for i in range(nr_neg):
+                    body[i] *= -1
+                self._program.append(Rule(head = head, body = body))
+                self._deriv.add(head[0])
+            elif line[0] == 3:
+                if line[1] > 1:
+                    raise UnsupportedException("Currently no choice rules with more than one atom in the head are supported.")
+                elif line[1] > 0 and line[line[1] + 1] > 0:
+                    raise UnsupportedException("Currently conditional choice rules are not supported.")
+                if line[1] == 1:
+                    self._guess.add(line[2])
+                    self._max = max(self._max(line[2]))
+            else:
+                raise UnsupportedException(f"Unsupported rule type {line[0]}.")
+
+        assert(len(self._deriv.intersection(self._guess)) == 0)
+        ctr = i
+        for i in range(ctr + 1, len(lines)):
+            line = lines[i].split(' ')
+            if line[0] == '0':
+                break
+            self._nameMap[int(line[0])] = line[1]
+            self._max = max(self._max, int(line[0]))
+        self._deriv = set(range(1, self._max + 1))
+        self._deriv.difference_update(self._guess)
+        for v in self._deriv:
+            if v not in self._nameMap:
+                self._nameMap[v] = f"projected_away({v})"
+        ctr = i
+        assert(lines[ctr + 1] == "B+")
+        for i in range(ctr + 2, len(lines)):
+            if lines[i] == '0':
+                break
+            self._program.append(Rule(head = [], body = [ -int(lines[i]) ]))
+        ctr = i
+        assert(lines[ctr + 1] == "B-")
+        for i in range(ctr + 2, len(lines)):
+            if lines[i] == '0':
+                break
+            self._program.append(Rule(head = [], body = [ int(lines[i]) ]))
 
     def _remove_tautologies(self, clingo_control):
         tmp = []
