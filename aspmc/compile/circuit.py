@@ -184,9 +184,8 @@ class Circuit(object):
             return Circuit._parse_wmc_miniC2D(path, weights, zero = zero, one = one, dtype = dtype, vtree = vtree)
         shape = (np.shape(weights[0])[0], ) + np.shape(one)
         with open(path) as ddnnf:
-            if solver != "sharpsat-td":
-                _, v, e, n = ddnnf.readline().split()
-                logger.debug(f"d-DNNF size: {v} nodes, {e} edges, {n} variables")
+            _, v, e, n = ddnnf.readline().split()
+            logger.debug(f"d-DNNF size: {v} nodes, {e} edges, {n} variables")
             mem = [] # np.empty((int(v), ) + shape, dtype=dtype) (this seems to perform worse than using mem.append() in a loop !?)
             idx = 0
             for line in ddnnf:

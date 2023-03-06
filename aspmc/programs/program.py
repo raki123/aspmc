@@ -127,7 +127,7 @@ class Program(object):
         for o in program:
             if isinstance(o, ClingoRule):
                 if len(o.head) > 1 and o.choice:
-                    raise UnsupportedException("Currently only no choice rules with more than one atom in the head are supported.")
+                    raise UnsupportedException("Currently no choice rules with more than one atom in the head are supported.")
                 if len(o.body) > 0 and o.choice:
                     raise UnsupportedException("Currently conditional choice rules are not supported.")
                 o.atoms = set(o.head)
