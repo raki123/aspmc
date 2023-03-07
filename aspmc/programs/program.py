@@ -106,14 +106,14 @@ class Program(object):
         self._exactlyOneOf = set()
         # the tree decomposition of the program
         self._td = None
-        if not smodels and (len(program_str) > 0 or len(program_files) > 0):
-            grounder.ground(clingo_control, program_str = program_str, program_files = program_files)
-        elif smodels:
+        if not smodels:
+            if (len(program_str) > 0 or len(program_files) > 0):
+                grounder.ground(clingo_control, program_str = program_str, program_files = program_files)
+            self._normalize(clingo_control)
+        else:
             if (len(program_str) > 0 and len(program_files) > 0) or len(program_files) > 0:
                 raise UnsupportedException("When instantiating a program from smodels format only one file or a program string may be given.")
             self._parse_smodels(program_str = program_str, program_files = program_files)
-        if not smodels:
-            self._normalize(clingo_control)
 
     def _parse_smodels(self, program_str = "", program_files = []):
         if len(program_str) > 0:
