@@ -155,11 +155,6 @@ class Program(object):
                 break
             self._nameMap[int(line[0])] = line[1]
             self._max = max(self._max, int(line[0]))
-        self._deriv = set(range(1, self._max + 1))
-        self._deriv.difference_update(self._guess)
-        for v in self._deriv:
-            if v not in self._nameMap:
-                self._nameMap[v] = f"projected_away({v})"
         ctr = i
         assert(lines[ctr + 1] == "B+")
         for i in range(ctr + 2, len(lines)):
@@ -172,6 +167,18 @@ class Program(object):
             if lines[i] == '0':
                 break
             self._program.append(Rule(head = [], body = [ int(lines[i]) ]))
+        ctr = i
+        if lines[ctr + 1] == "E":
+            for i in range(ctr + 2, len(lines)):
+                if lines[i] == '0':
+                    break
+                self._guess.add(int(lines[i]))
+                
+        self._deriv = set(range(1, self._max + 1))
+        self._deriv.difference_update(self._guess)
+        for v in self._deriv:
+            if v not in self._nameMap:
+                self._nameMap[v] = f"projected_away({v})"
 
     def _remove_tautologies(self, clingo_control):
         tmp = []
