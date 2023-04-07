@@ -111,7 +111,8 @@ class Program(object):
                 grounder.ground(clingo_control, program_str = program_str, program_files = program_files)
             self._normalize(clingo_control)
         else:
-            if (len(program_str) > 0 and len(program_files) > 0) or len(program_files) > 0:
+            if (len(program_str) > 0 and len(program_files) > 0) or len(program_files) > 1:
+                print(program_files, program_str)
                 raise UnsupportedException("When instantiating a program from smodels format only one file or a program string may be given.")
             self._parse_smodels(program_str = program_str, program_files = program_files)
 
@@ -120,7 +121,7 @@ class Program(object):
             lines = program_str.split('\n')
         else:
             with open(program_files[0], 'r') as in_file:
-                lines = in_file.readlines()
+                lines = [ line[:-1] for line in in_file.readlines() ]
 
         for i in range(len(lines)):
             line = [ int(v) for v in lines[i].split(' ') ]
