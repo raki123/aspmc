@@ -116,6 +116,44 @@ class Atom(object):
                 vars.add(term)
         return vars
 
+class ArtithmeticAtom(Atom):
+    """A class for arithmetic atoms.
+
+    Implements a custom `__str__` method.
+    
+    Args:
+        predicate (:obj:`string`): The predicate of the atom.
+        inputs (:obj:`list`, optional): The inputs of the atom. 
+        These may be strings or other atoms. 
+        Defaults to `None`.
+        negated (:obj:`bool`, optional): Whether the atom is negated.
+        Defaults to `False`.
+
+    Attributes:
+        predicate (:obj:`string`): The predicate of the atom.
+        inputs (:obj:`list`, optional): The inputs of the atom. 
+        These may be strings or other atoms. 
+        negated (:obj:`bool`, optional): Whether the atom is negated.
+    """
+    def __init__(self, predicate, inputs, variables):
+        assert(len(inputs) == 2)
+        self.variables = set(variables)
+        super().__init__(predicate, inputs, negated = False)
+
+    def __str__(self):
+        res = str(self.inputs[0])
+        res += f" {self.predicate} "
+        res += str(self.inputs[1])
+        return res
+
+    def get_variables(self):
+        """Rcursively finds all the variables used in the atom.
+
+        Returns:
+            :obj:`list`: The list of variables as strings.
+        """
+        self.variables
+
 
 class ProblogTransformer(Transformer):
     """The corresponding ProbLog semantics class for the ProbLog grammar GRAMMAR.
@@ -157,6 +195,21 @@ class ProblogTransformer(Transformer):
             return Atom(str(ast[1]), inputs = ast[2], negated = negated)
         else:
             return Atom(str(ast[1]), negated = negated)
+    
+    def arithmetic_atom(self, ast):
+        return ArtithmeticAtom(ast[1], [ast[0][0], ast[2][0]], ast[0][1] + ast[2][1])
+    
+    def comparator(self, ast):
+        return ast[0]
+
+    def arithmetic_expression(self, ast):
+        str_rep = ""
+        variables = []
+        for sub in ast:
+            if re.match(r"[A-Z][a-zA-Z0-9]*", sub):
+                variables.append(sub)
+            str_rep += sub
+        return (str_rep, variables)
 
     def input(self, ast):  # noqa
         return ast
@@ -189,11 +242,17 @@ GRAMMAR = r'''
 
     constraint : ":-" body
 
-    body : [ atom ( "," atom )* ]
+    body : [ ( atom | arithmetic_atom ) ( "," ( atom | arithmetic_atom ) )* ]
 
     NEGATION : "\+"
 
     atom : [NEGATION] ( /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ]  |  "(" /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ] ")" )
+
+    arithmetic_atom : arithmetic_expression comparator arithmetic_expression
+
+    !comparator : "=" | "!=" | "<=" | "<" | ">=" | ">" 
+
+    arithmetic_expression : ( variable | /[0-9\(\)+\-\/\*]+/ )+
 
     input : term ( "," term )*
 
