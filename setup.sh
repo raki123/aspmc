@@ -1,6 +1,7 @@
 RED='\033[1;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
+ASPMC_ROOT=`pwd`
 if ! python3 -c 'import sys; assert sys.version_info >= (3,6)' > /dev/null; 
 then 
     echo -e "${RED}python 3.6 or higher is required!${NC}";
@@ -25,21 +26,21 @@ else
         echo -e "${GREEN} Compiling flow-cutter. ${NC}"
         cd aspmc/external/flow-cutter/
         g++ -Wall -std=c++11 -O3 -DNDEBUG src/*.cpp -o flow_cutter_pace17 --static
-        cd ../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/minisat-definitions/bin/defined ] || [ ! -f aspmc/external/minisat-definitions/bin/minisat ];
     then
         echo -e "${GREEN} Compiling minisat-definitions. ${NC}"
         cd aspmc/external/minisat-definitions/
         bash setup.sh static
-        cd ../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/d4/d4_static ];
     then
         echo -e "${GREEN} Compiling d4. ${NC}"
         cd aspmc/external/d4/
         make -j4 rs
-        cd ../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/sharpsat-td/bin/sharpSAT ];
     then
@@ -47,14 +48,14 @@ else
         cd aspmc/external/sharpsat-td/
 	mkdir bin
         bash setupdev.sh static
-        cd ../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/preprocessor/bin/sharpSAT ];
     then
         echo -e "${GREEN} Compiling sharpSAT-TD Preprocessor. ${NC}"
         cd aspmc/external/preprocessor/
         bash setupdev.sh static
-        cd ../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/UWrMaxSAT/uwrmaxsat/build/release/bin/uwrmaxsat ];
     then
@@ -69,7 +70,7 @@ else
         git clean -fdx
         cd ..
         #* 2.1 get COMiniSatPSChandrasekharDRUP.zip:  
-        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip  
+        wget --no-check-certificate https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip  
         #* 2.2 unzip and move:  
         unzip COMiniSatPSChandrasekharDRUP.zip  
         mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .  
@@ -112,7 +113,7 @@ else
         #MAXPRE=  make r  
         #* 5.3 or with the one below if you do not want to use the SCIP library only:  
         USESCIP=  make r  
-        cd ../../../../
+        cd $ASPMC_ROOT
     fi
     if [ ! -f aspmc/external/fvs/src/build/FeedbackVertexSet ];
     then
@@ -122,7 +123,7 @@ else
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
         make
-        cd ../../../../../
+        cd $ASPMC_ROOT
     fi
     echo -e "${GREEN} Done! ${NC}"
 fi
