@@ -3,7 +3,6 @@ import logging
 
 import aspmc.graph.treedecomposition as treedecomposition
 
-import aspmc.compile.separator as separator
 import aspmc.compile.vtree as vtree
 import aspmc.compile.dtree as dtree
 
@@ -11,35 +10,39 @@ import aspmc.config as config
 
 logger = logging.getLogger("aspmc")
 
-def separator_encoding_asp(graph, P, D, R):
-    enc = """left(X) :- edge(X,Y), left(Y), not sep(X), not sep(Y).
-:- right(X), left(X).
-:~ sep(X). [1,X]
-#show sep/1.
-"""
-    data = ""
-    for v in graph.nodes:
-        data += f"node({v}).\n"
-    for (u,v) in graph.edges:
-        data += f"edge({u},{v}).\nedge({v},{u}).\n"
-    for v in P:
-        data += f"left({v}).\n"
-        data += f"{{sep({v})}}.\n"
-    for v in D:
-        data += f"{{sep({v})}}.\n"
-    for v in R:
-        data += f"right({v}).\n"
-    return data + enc
-
 def compute_separator(graph, P, D, R):
-    prog = separator_encoding_asp(graph, P, D, R)
-    c = separator.ClingoControl(prog)
-    res = c.get_separator()[2][0]
-    if res == ['']:
-        return []
-    else:
-        res = [int(v[2:]) for v in res]
-    return res
+    flow_graph = nx.DiGraph()
+    N = graph.number_of_nodes()
+    # 1 to N are nodes for incoming edges
+    # N + 1 to 2*N are nodes for outgoing edges
+    # the edges between i, i + N for i in P or D are the 
+    # only ones that can be cut
+    for i in P:
+        flow_graph.add_edge(i, i + N, capacity = 1.0)
+    for i in D:
+        flow_graph.add_edge(i, i + N, capacity = 1.0)
+    for i in R:
+        # these are edges with infinite capacity
+        flow_graph.add_edge(i, i + N)
+        
+    for u,v in graph.edges:
+        flow_graph.add_edge(u + N, v)
+        flow_graph.add_edge(v + N, u)
+    
+    # add global source and sink
+    source = 2*N + 1
+    sink = 2*N + 2
+    for i in R:
+        flow_graph.add_edge(source, i)
+    for i in P:
+        flow_graph.add_edge(i + N, sink)
+        
+    cut_value, partition = nx.minimum_cut(flow_graph, source, sink)
+    reachable, non_reachable = partition
+    cutset = set()
+    for u, nbrs in ((n, flow_graph[n]) for n in reachable):
+        cutset.update((u, v) for v in nbrs if v in non_reachable)
+    return [ u for u, _ in cutset ]
 
 def TD_to_tree(cnf, td, done = None, tree_type = dtree.Dtree):
     if tree_type.__name__ is dtree.Dtree.__name__:
