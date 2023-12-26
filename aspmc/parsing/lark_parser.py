@@ -189,12 +189,15 @@ class ProblogTransformer(Transformer):
     def constraint(self, ast): #noqa
         return { 'head' : None, 'weights' : None, 'body' : ast[0] }
 
-    def atom(self, ast):  # noqa
+    def head_atom(self, ast):  # noqa
         negated = str(ast[0]) == '\\+'
         if len(ast) == 3:
             return Atom(str(ast[1]), inputs = ast[2], negated = negated)
         else:
             return Atom(str(ast[1]), negated = negated)
+        
+    def body_atom(self, ast):
+        return ast[0]
     
     def arithmetic_atom(self, ast):
         return ArtithmeticAtom(ast[1], [ast[0][0], ast[2][0]], ast[0][1] + ast[2][1])
@@ -234,29 +237,31 @@ GRAMMAR = r'''
 
     rule : ( normal_rule | fact | constraint ) "."
 
-    fact : annotated_disjunction | atom
+    fact : annotated_disjunction | head_atom
 
     normal_rule : fact constraint
 
-    annotated_disjunction : weight "::" atom (";" weight "::" atom)*
+    annotated_disjunction : weight "::" head_atom (";" weight "::" head_atom)*
 
     constraint : ":-" body
 
-    body : [ ( atom | arithmetic_atom ) ( "," ( atom | arithmetic_atom ) )* ]
+    body : [ body_atom ( "," body_atom )* ]
 
     NEGATION : "\+"
 
-    atom : [NEGATION] ( /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ]  |  "(" /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ] ")" )
+    head_atom : [NEGATION] ( /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ]  |  "(" /[a-z]([a-zA-Z0-9_])*/ [ "(" input ")" ] ")" )
+    
+    body_atom : ( head_atom | arithmetic_atom )
 
     arithmetic_atom : arithmetic_expression comparator arithmetic_expression
 
     !comparator : "=" | "!=" | "<=" | "<" | ">=" | ">" 
 
-    arithmetic_expression : ( variable | /[0-9\(\)+\-\/\*]+/ )+
+    arithmetic_expression : ( variable | /[0-9+\-\/\*]+/ )+
 
     input : term ( "," term )*
 
-    term : atom | /[0-9_\/<>=+"-]([a-zA-Z0-9_\/<>=+".-]*)/ | variable 
+    term : head_atom | /[0-9_\/<>=+"-]([a-zA-Z0-9_\/<>=+".-]*)/ | variable 
 
     variable : /[A-Z][a-zA-Z0-9]*/
 

@@ -32,6 +32,8 @@ def compute_separator(graph, P, D, R):
     # add global source and sink
     source = 2*N + 1
     sink = 2*N + 2
+    flow_graph.add_node(source)
+    flow_graph.add_node(sink)
     for i in R:
         flow_graph.add_edge(source, i)
     for i in P:
@@ -196,6 +198,10 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
     # construct the complete tree by bottom up stitching
     for level in range(len(separators) - 1, -1, -1):
         separator = separators[level]
+        
+        if len(separator) == 0:
+            # we do not have to do anything
+            continue
         
         # first combine right and left
         if parent is None:
