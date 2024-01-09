@@ -1,8 +1,10 @@
 """
 Program module providing the two algebraic progam class.
 """
-
 import numpy as np
+
+import logging
+logger = logging.getLogger("aspmc")
 
 from aspmc.programs.program import Program
 
@@ -46,6 +48,7 @@ class TwoAlgebraicProgram(Program):
             Specify the empty list for an overall weight query.
     """
     def __init__(self, clingo_control, first_semiring, second_semiring, first_weights, second_weights, transform, queries):
+        logger.warning("TwoAlgebraicProgram may be removed in favor of the new NestedAlgebraicProgram in the future")
         self.first_semiring = first_semiring
         self.second_semiring = second_semiring
         self.first_weights = first_weights
