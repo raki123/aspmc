@@ -91,7 +91,7 @@ class CNF(object):
         self.weights = {}
         self.semirings = []
         self.quantified = []
-        self.transform = None
+        self.transforms = []
         if path is not None:
             with open(path) as in_file:
                 for line in in_file:
@@ -106,7 +106,7 @@ class CNF(object):
                             elif line[2] == "semirings":
                                 self.semirings = [ importlib.import_module(mod) for mod in line[3:-1] ]
                             elif line[2] == "transform":
-                                self.transform = ' '.join(line[3:-1])
+                                self.transforms.append(' '.join(line[3:-1]))
                             elif line[2] == "quantify":
                                 self.quantified.append([int(x) for x in line[3:-1]])
                             elif line[2] == "auxilliary":
@@ -133,7 +133,7 @@ class CNF(object):
                         elif line[2] == "semirings":
                             self.semirings = [ importlib.import_module(mod) for mod in line[3:-1] ]
                         elif line[2] == "transform":
-                            self.transform = ' '.join(line[3:-1])
+                            self.transforms.append(' '.join(line[3:-1]))
                         elif line[2] == "quantify":
                             self.quantified.append([int(x) for x in line[3:-1]])
                         elif line[2] == "auxilliary":
@@ -152,21 +152,22 @@ class CNF(object):
         if len(self.quantified) != len(self.semirings):
             logger.error("We must have the same number of semirings and quantifiers!")
             exit(-1)
-        if len(self.semirings) > 2:
-            logger.error("More than two semirings are currently not supported.")
-            exit(-1)
-        if len(self.semirings) == 2 and self.transform is None:
-            logger.error("If there are multiple semirings, we need a transform between them.")
+        if len(self.semirings) != len(self.transforms) + 1 and (path is not None or string is not None):
+            logger.error("If there are multiple semirings, we need a transforms between them.")
             exit(-1)
         if len(self.weights) > 0 and len(self.quantified) == 0:
             self.quantified = [ set(range(1,self.nr_vars + 1)) ]
             import aspmc.semirings.probabilistic
             self.semirings = [ aspmc.semirings.probabilistic ]
+            
+        var_to_val_type = [ len(self.semirings) - 1 for _ in range(self.nr_vars + 1) ]
+        for val_type, vars in enumerate(self.quantified):
+            for var in vars:
+                var_to_val_type[var] = val_type
+                
         for idx in self.weights:
-            if abs(idx) in self.quantified[0]:
-                self.weights[idx] = np.array([ self.semirings[0].parse(w) for w in self.weights[idx].split(";") ])
-            else:
-                self.weights[idx] = np.array([ self.semirings[1].parse(w) for w in self.weights[idx].split(";") ])
+            val_type = var_to_val_type[idx]
+            self.weights[idx] = np.array([ self.semirings[val_type].parse(w) for w in self.weights[idx].split(";") ])
 
     def __repr__(self):
         return str(self)
@@ -183,8 +184,8 @@ class CNF(object):
             ret += f"c p weight {idx} {weight} 0\n"
         if len(self.semirings) > 0:
             ret += f"c p semirings {' '.join([ x.__name__ for x in self.semirings])} 0\n"
-        if self.transform is not None:
-            ret += f"c p transform {self.transform} 0\n"
+        for transform in self.transforms:
+            ret += f"c p transform {transform} 0\n"
         for l in self.quantified:
             ret += f"c p quantify {' '.join([str(x) for x in l])} 0\n"
         ret += f"c p auxilliary {' '.join([str(x) for x in self.auxilliary])} 0\n"
@@ -339,8 +340,8 @@ class CNF(object):
                     file_out.write(f"c p weight {idx} {weight} 0\n")
                 if len(self.semirings) > 0:
                     file_out.write(f"c p semirings {' '.join([ x.__name__ for x in self.semirings])} 0\n")
-                if self.transform is not None:
-                    file_out.write(f"c p transform {self.transform} 0\n")
+                for transform in self.transforms:
+                    file_out.write(f"c p transform {transform} 0\n")
                 for l in self.quantified:
                     file_out.write(f"c p quantify {' '.join([str(x) for x in l])} 0\n")
                 file_out.write(f"c p auxilliary {' '.join([str(x) for x in self.auxilliary])} 0\n")
@@ -368,8 +369,8 @@ class CNF(object):
                 stream.write(f"c p weight {idx} {weight} 0\n".encode())
             if len(self.semirings) > 0:
                 stream.write(f"c p semirings {' '.join([ x.__name__ for x in self.semirings])} 0\n".encode())
-            if self.transform is not None:
-                stream.write(f"c p transform {self.transform} 0\n".encode())
+            for transform in self.transforms:
+                stream.write(f"c p transform {transform} 0\n".encode())
             for l in self.quantified:
                 stream.write(f"c p quantify {' '.join([str(x) for x in l])} 0\n".encode())
             stream.write(f"c p auxilliary {' '.join([str(x) for x in self.auxilliary])} 0\n".encode())
@@ -496,7 +497,7 @@ class CNF(object):
                     second.difference_update(first)
                     for i in second:
                         res *= weights[to_pos(i)] + weights[neg(to_pos(i))]
-                    f_transform = eval(self.transform)
+                    f_transform = eval(self.transforms[0])
                     transform = lambda x : self.semirings[0].from_value(f_transform(x))
                     res = np.array([ transform(w) for w in res ], dtype = self.semirings[0].dtype)
                     for i in first:
@@ -507,6 +508,7 @@ class CNF(object):
                 res = np.empty(first_shape, dtype=self.semirings[0].dtype)
                 res[:] = self.semirings[0].zero()
                 return res
+        # TODO: implement for more semirings
                         
     
     @staticmethod
@@ -765,7 +767,7 @@ class CNF(object):
         end = time.time()
         logger.info(f"Preparation time:         {end - start}")
         start = time.time()
-        results = circ.parse_wmc(cnf_tmp + '.nnf', weights, P, self.semirings[0], self.semirings[1], self.transform)
+        results = circ.parse_wmc(cnf_tmp + '.nnf', weights, self)
         end = time.time()
         logger.info(f"Counting time:            {end - start}")
         # clean up the files

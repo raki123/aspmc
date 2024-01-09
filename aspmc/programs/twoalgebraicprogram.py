@@ -62,7 +62,7 @@ class TwoAlgebraicProgram(Program):
         self._cnf.quantified = [first, second]
         for v in range(self._cnf.nr_vars*2):
             self._cnf.weights[to_dimacs(v)] = weight_list[v]
-        self._cnf.transform = self.transform
+        self._cnf.transforms = [ self.transform ]
         self._cnf.semirings = [ self.first_semiring, self.second_semiring ]
         # TODO figure out which variables we can mark as auxilliary
 

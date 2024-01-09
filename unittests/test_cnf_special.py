@@ -87,7 +87,7 @@ class TestCNFSpecial(unittest.TestCase):
             importlib.import_module("aspmc.semirings.two_nat") 
             ]
         cnf.quantified = [ [ 1 ], [ 2 ] ]
-        cnf.transform = "lambda w : w[0]/w[1]"
+        cnf.transforms = [ "lambda w : w[0]/w[1]" ]
         cnf.weights = { 
             1 : np.array([0.5]), -1 : np.array([0.5]),
             2 : np.array([np.array([1.0, 1.0])]), -2 : np.array([np.array([1.0, 1.0])])

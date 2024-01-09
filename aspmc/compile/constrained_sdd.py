@@ -235,7 +235,7 @@ class ConstrainedSDD(object):
         node.weight *= factor(node.vtree_node, self.vtree.idx)
         return node.weight
 
-    def parse_wmc(self, path, weights, P, first_semiring, second_semiring, transform):
+    def parse_wmc(self, path, weights, cnf): # path, weights, P, first_semiring, second_semiring, transform):
         """Performs (two) algebraic model counting over an X/D-constrained SDD while parsing it.
         
         Args:
@@ -252,9 +252,14 @@ class ConstrainedSDD(object):
         Returns:
             (:obj:`object`): The algebraic model count.
         """
-        first_shape = (np.shape(weights[0])[0], ) + np.shape(first_semiring.one())
-        second_shape = (np.shape(weights[0])[0], ) + np.shape(second_semiring.one())
+        shapes = [ (np.shape(weights[0])[0], ) + np.shape(semiring.one()) for semiring in cnf.semirings ]
 
+        first_semiring = cnf.semirings[0]
+        second_semiring = cnf.semirings[1]
+        
+        transform = cnf.transforms[0]
+
+        P = cnf.quantified[0]        
         # initialize the transform function
         f_transform = eval(transform)
         transform = lambda x : first_semiring.from_value(f_transform(x))
@@ -271,9 +276,9 @@ class ConstrainedSDD(object):
             if self.lca[i][j] == j: # i should always be above j
                 i,j = j,i
             if self.lca[i][separator_node] == separator_node and i not in P:
-                res = np.full(second_shape, second_semiring.one())
+                res = np.full(shapes[1], second_semiring.one())
             else:
-                res = np.full(first_shape, first_semiring.one())
+                res = np.full(shapes[0], first_semiring.one())
             if i == j:
                 return res
             upper = index_to_node[i - 1]
@@ -314,7 +319,7 @@ class ConstrainedSDD(object):
                     if line[0] == 'A':
                         vtree_node = self.lca[vtree_nodes[int(line[2])]][vtree_nodes[int(line[3])]]
                         if self.lca[separator_node][vtree_node] != separator_node:
-                            val = np.empty(first_shape, dtype=first_semiring.dtype)
+                            val = np.empty(shapes[0], dtype=first_semiring.dtype)
                             val[:] = first_semiring.one()
                             for x in line[2:]:
                                 x = int(x)
@@ -324,19 +329,19 @@ class ConstrainedSDD(object):
                                 else:
                                     val *= mem[x]
                         else:
-                            val = np.empty(second_shape, dtype=second_semiring.dtype)
+                            val = np.empty(shapes[1], dtype=second_semiring.dtype)
                             val[:] = second_semiring.one()
                             for x in line[2:]:
                                 val *= mem[int(x)]
                     elif line[0] == 'O':
                         vtree_node = self.lca[vtree_nodes[int(line[3])]][vtree_nodes[int(line[4])]]
                         if self.lca[separator_node][vtree_node] != separator_node:
-                            val = np.empty(first_shape, dtype=first_semiring.dtype)
+                            val = np.empty(shapes[0], dtype=first_semiring.dtype)
                             val[:] = first_semiring.zero()
                             for x in line[3:]:
                                 val += mem[int(x)]*factor(vtree_node, vtree_nodes[int(x)])
                         else:                
-                            val = np.empty(second_shape, dtype=second_semiring.dtype)
+                            val = np.empty(shapes[1], dtype=second_semiring.dtype)
                             val[:] = second_semiring.zero()
                             for x in line[3:]:
                                 val += mem[int(x)]*factor(vtree_node, vtree_nodes[int(x)])

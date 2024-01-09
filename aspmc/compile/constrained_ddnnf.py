@@ -4,7 +4,7 @@ from aspmc.util import *
 class ConstrainedDDNNF(object):
     # assumes that the DDNNF is smooth
     @staticmethod
-    def parse_wmc(path, weights, P, first_semiring, second_semiring, transform):
+    def parse_wmc(path, weights, cnf):
         """Performs (two) algebraic model counting over an X/D-constrained circuit that is smooth while parsing it.
         
         Args:
@@ -21,12 +21,27 @@ class ConstrainedDDNNF(object):
         Returns:
             (:obj:`object`): The algebraic model count.
         """
-        first_shape = (np.shape(weights[0])[0], ) + np.shape(first_semiring.one())
-        second_shape = (np.shape(weights[0])[0], ) + np.shape(second_semiring.one())
+        shapes = [ (np.shape(weights[0])[0], ) + np.shape(semiring.one()) for semiring in cnf.semirings ]
         
-        f_transform = eval(transform)
-        transform = lambda x : first_semiring.from_value(f_transform(x))
+        # transforms[i][j] for i < j transforms a value from the jth semiring into one from the jth semiring
+        transforms = [ [ None for _ in range(len(cnf.semirings)) ] for _ in range(len(cnf.semirings)) ]
+        # set the base transforms
+        base_transforms = [ eval(transform) for transform in cnf.transforms ]
+        base_transforms = [ lambda x : cnf.semirings[i].from_value(transform(x)) for i, transform in enumerate(base_transforms) ]
+        
+        for i in range(len(cnf.semirings) - 1):
+            transforms[i][i+1] = base_transforms[i]
 
+        # set the multistep transforms
+        for i in range(len(cnf.semirings) - 1, -1, -1):
+            for j in range(i - 3, -1, -1):
+                transforms[i][j] = lambda x : base_transforms[i](transforms[i][j + 1](x))
+                
+        var_to_val_type = [ len(cnf.semirings) - 1 for _ in range(cnf.nr_vars + 1) ]
+        for val_type, vars in enumerate(cnf.quantified):
+            for var in vars:
+                var_to_val_type[var] = val_type
+        
         with open(path) as ddnnf:
             _, nr_nodes, nr_edges, nr_leafs = ddnnf.readline().split()
             mem = []
@@ -36,7 +51,7 @@ class ConstrainedDDNNF(object):
                 line = line.strip().split()
                 if line[0] == 'L':
                     val = weights[to_pos(int(line[1]))]
-                    val_type = abs(int(line[1])) in P
+                    val_type = var_to_val_type[abs(int(line[1]))]
                 else:
                     if line[0] == 'A':
                         val = None
@@ -46,21 +61,16 @@ class ConstrainedDDNNF(object):
                             if mem_types[child] != val_type:
                                 if val_type is None:
                                     val_type = mem_types[child]
-                                    if mem_types[child]:
-                                        val = np.empty(first_shape, dtype=first_semiring.dtype)
-                                        val[:] = first_semiring.one()
-                                        val *= mem[child]
-                                    else:
-                                        val = np.empty(second_shape, dtype=second_semiring.dtype)
-                                        val[:] = second_semiring.one()
-                                        val *= mem[child]
+                                    val = np.empty(shapes[val_type], dtype=cnf.semirings[val_type].dtype)
+                                    val[:] = cnf.semirings[val_type].one()
+                                    val *= mem[child]
                                 else:
-                                    if mem_types[child]:
-                                        val_type = True
-                                        val = np.array([ transform(w) for w in val ], dtype = first_semiring.dtype)
+                                    if mem_types[child] < val_type:
+                                        val = np.array([ transforms[mem_types[child]][val_type](w) for w in val ], dtype = cnf.semirings[mem_types[child]].dtype)
+                                        val_type = mem_types[child]
                                         val *= mem[child]
                                     else:
-                                        val *= np.array([ transform(w) for w in mem[child] ], dtype = first_semiring.dtype)
+                                        val *= np.array([ transforms[val_type][mem_types[child]](w) for w in mem[child] ], dtype = cnf.semirings[val_type].dtype)
                             else:
                                 val *= mem[child]
                     elif line[0] == 'O':
@@ -71,21 +81,16 @@ class ConstrainedDDNNF(object):
                             if mem_types[child] != val_type:
                                 if val_type is None:
                                     val_type = mem_types[child]
-                                    if mem_types[child]:
-                                        val = np.empty(first_shape, dtype=first_semiring.dtype)
-                                        val[:] = first_semiring.zero()
-                                        val += mem[child]
-                                    else:
-                                        val = np.empty(second_shape, dtype=second_semiring.dtype)
-                                        val[:] = second_semiring.zero()
-                                        val += mem[child]
+                                    val = np.empty(shapes[val_type], dtype=cnf.semirings[val_type].dtype)
+                                    val[:] = cnf.semirings[val_type].zero()
+                                    val += mem[child]
                                 else:
-                                    if mem_types[child]:
-                                        val_type = True
-                                        val = np.array([ transform(w) for w in val ], dtype = first_semiring.dtype)
+                                    if mem_types[child] < val_type:
+                                        val = np.array([ transforms[mem_types[child]][val_type](w) for w in val ], dtype = cnf.semirings[mem_types[child]].dtype)
+                                        val_type = mem_types[child]
                                         val += mem[child]
                                     else:
-                                        val += np.array([ transform(w) for w in mem[child] ], dtype = first_semiring.dtype)
+                                        val += np.array([ transforms[val_type][mem_types[child]](w) for w in mem[child] ], dtype = cnf.semirings[val_type].dtype)
                             else:
                                 val += mem[child]
                 mem.append(val)
