@@ -37,10 +37,10 @@ class NestedAlgebraicProgram(Program):
         queries (:obj:`list`): A list of names of atoms that should be queried. 
             Specify the empty list for an overall weight query.
     """
-    def __init__(self, clingo_control, semirings, weights, transforms, queries):
+    def __init__(self, clingo_control, semirings, weights_per_semiring, transforms, queries):
         self.semirings = semirings
-        self.weights = weights
-        self.transform = transforms
+        self.weights_per_semiring = weights_per_semiring
+        self.transforms = transforms
         self.queries = queries
         Program.__init__(self, clingo_control = clingo_control)
 
@@ -49,7 +49,7 @@ class NestedAlgebraicProgram(Program):
         varMap = { name : var for var, name in self._nameMap.items() }
         # quantifiers
         self._cnf.quantified = []
-        for cur_weights in self.weights:
+        for cur_weights in self.weights_per_semiring:
             cur_atoms = set([ int(str(varMap[name])) for (name, _) in cur_weights ])
             self._cnf.quantified.append(cur_atoms)
         # weights
@@ -68,7 +68,7 @@ class NestedAlgebraicProgram(Program):
         weight_list = [ np.empty(shapes[-1], dtype=self.semirings[-1].dtype) for _ in range(self._cnf.nr_vars*2) ]
         for i in range(self._cnf.nr_vars*2):
             weight_list[i][:] = self.semirings[-1].one()
-        for i, cur_weights in enumerate(self.weights):
+        for i, cur_weights in enumerate(self.weights_per_semiring):
             for (name, phase) in cur_weights:
                 idx = to_pos(varMap[name])
                 if not phase:
@@ -82,7 +82,7 @@ class NestedAlgebraicProgram(Program):
         
         # set the weights for the queries
         var_to_val_type = [ len(self.semirings) - 1 for _ in range(self._cnf.nr_vars + 1) ]
-        for val_type, cur_weights in enumerate(self.weights):
+        for val_type, cur_weights in enumerate(self.weights_per_semiring):
             for (name, _) in cur_weights:
                 var = int(str(varMap[name]))
                 var_to_val_type[var] = val_type

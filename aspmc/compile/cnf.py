@@ -871,11 +871,8 @@ class CNF(object):
         logger.info("------------------------------------------------------------")
         if len(self.semirings) <= 1:
             results = self.solve_compilation_single()
-        elif len(self.semirings) == 2:
-            results = self.solve_compilation_two()
         else:
-            logger.error("More than two semirings, no compilation procedure available.")
-            exit(-1)
+            results = self.solve_compilation_two()
         logger.info("------------------------------------------------------------")
         return results
 

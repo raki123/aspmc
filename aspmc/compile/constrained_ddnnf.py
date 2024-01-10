@@ -27,21 +27,22 @@ class ConstrainedDDNNF(object):
         transforms = [ [ None for _ in range(len(cnf.semirings)) ] for _ in range(len(cnf.semirings)) ]
         # set the base transforms
         base_transforms = [ eval(transform) for transform in cnf.transforms ]
-        base_transforms = [ lambda x : cnf.semirings[i].from_value(transform(x)) for i, transform in enumerate(base_transforms) ]
-        
+        base_transforms = [ lambda x, transform = transform, i = i: cnf.semirings[i].from_value(transform(x)) for i, transform in enumerate(base_transforms) ]
+
         for i in range(len(cnf.semirings) - 1):
             transforms[i][i+1] = base_transforms[i]
 
+
         # set the multistep transforms
         for i in range(len(cnf.semirings) - 1, -1, -1):
-            for j in range(i - 3, -1, -1):
-                transforms[i][j] = lambda x : base_transforms[i](transforms[i][j + 1](x))
+            for j in range(i - 2, -1, -1):
+                transforms[j][i] = lambda x, i = i, j = j: base_transforms[j](transforms[j+1][i](x))
                 
         var_to_val_type = [ len(cnf.semirings) - 1 for _ in range(cnf.nr_vars + 1) ]
         for val_type, vars in enumerate(cnf.quantified):
             for var in vars:
                 var_to_val_type[var] = val_type
-        
+
         with open(path) as ddnnf:
             _, nr_nodes, nr_edges, nr_leafs = ddnnf.readline().split()
             mem = []
