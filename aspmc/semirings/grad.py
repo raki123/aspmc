@@ -6,7 +6,8 @@ class Gradient(object):
         return Gradient((self.value[0] + other.value[0], self.value[1] + other.value[1]))
 
     def __iadd__(self, other):
-        self.value[0] += other.value
+        self.value[0] += other.value[0]
+        self.value[1] += other.value[1]
         return self
 
     def __mul__(self, other):
@@ -47,4 +48,4 @@ def one():
     return Gradient((1.0, 0.0))
 
 dtype = object
-pattern = '[(][+-]?([0-9]*[.])?[0-9]+[,][+-]?([0-9]*[.])?[0-9]+[)]'
+pattern = '\([+-]?([0-9]*[.])?[0-9]+,[+-]?([0-9]*[.])?[0-9]+\)'

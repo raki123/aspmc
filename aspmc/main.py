@@ -17,7 +17,7 @@ from aspmc.programs.meuprogram import MEUProblogProgram
 from aspmc.programs.mapprogram import MAPProblogProgram
 from aspmc.programs.mpeprogram import MPEProblogProgram
 from aspmc.programs.optprogram import OptProgram
-from aspmc.programs.dtasprogram import DTASProgram
+from aspmc.programs.dtpasprogram import DTPASProgram
 
 from aspmc.compile.cnf import CNF
 
@@ -97,7 +97,7 @@ python main.py [-m .] [-st .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .
                                         * meuproblog        : take a problog program with extra decision and utility atoms as input
                                         * mapproblog        : take a problog program with extra evidence and map query atoms as input
                                         * mpeproblog        : take a problog program with extra evidence atoms as input
-                                        * dtasp             : take a probabilistic answer set program with extra decision and utility atoms as input
+                                        * dtpasp            : take a probabilistic answer set program with extra decision and utility atoms as input
     --strategy          -st STRATEGY    set solving strategy to STRATEGY:
                                         * flexible          : choose the solver flexibly 
                                         * compilation       : use knowledge compilation (default)
@@ -162,7 +162,7 @@ def main():
                 mode = sys.argv[2]
                 if mode != "problog" and mode != "asp" and mode != "smproblog" and mode != "meuproblog" \
                     and mode != "mapproblog" and mode != "mpeproblog" and mode != "optasp" and mode != "cnf" \
-                    and mode != "smodels" and mode != "dtasp":
+                    and mode != "smodels" and mode != "dtpasp":
                     logger.error("  Unknown mode: " + mode)
                     exit(-1)
                 smodels = mode == "smodels"
@@ -255,8 +255,8 @@ def main():
         program = MAPProblogProgram(program_str, program_files)
     elif mode == "mpeproblog":
         program = MPEProblogProgram(program_str, program_files)
-    elif mode == "dtasp":
-        program = DTASProgram(program_str, program_files)
+    elif mode == "dtpasp":
+        program = DTPASProgram(program_str, program_files)
     elif mode == "optasp":
         program = OptProgram(program_str, program_files)
     elif mode == "cnf":

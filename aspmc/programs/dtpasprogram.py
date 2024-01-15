@@ -13,14 +13,14 @@ from lark import Lark
 from aspmc.parsing.lark_parser import GRAMMAR, ProblogTransformer
 from aspmc.util import *
 
-import aspmc.semirings.maxplusdecisions as first_semiring
-import aspmc.semirings.grad as second_semiring # the gradient semiring and the expected utility are the same
-import aspmc.semirings.maxplus as third_semiring 
+import aspmc.semirings.minmaxplusdecisions as first_semiring
+import aspmc.semirings.twograd as second_semiring # the gradient semiring and the expected utility are the same
+import aspmc.semirings.minmaxplus as third_semiring 
 import aspmc.semirings.probabilistic as semiring
 
 logger = logging.getLogger("aspmc")
 
-class DTASProgram(NestedAlgebraicProgram, ProblogProgram):
+class DTPASProgram(NestedAlgebraicProgram, ProblogProgram):
     """A class for Maximum Expected Utility programs. 
 
     The syntax for these programs is the same as for ProbLog in MEU mode. 
@@ -66,7 +66,7 @@ class DTASProgram(NestedAlgebraicProgram, ProblogProgram):
         # weights for the maxplus semiring
         first_semiring.names = [ name for name in self.decisions ]
         for i,name in enumerate(self.decisions):
-            first_weight_list[(name, True)] = first_semiring.MaxPlusFloat(0, 2**i)
+            first_weight_list[(name, True)] = first_semiring.MinMaxPlusFloat((0, 0), (2**i, 2**i))
             first_weight_list[(name, False)] = first_semiring.one()
         # weights for the expected utility semiring
         second_weight_list = {}
@@ -81,15 +81,16 @@ class DTASProgram(NestedAlgebraicProgram, ProblogProgram):
                     exit(-1)
                 second_weight_list[(name, phase)][1] = second_weight_list[(name, phase)][0]*self.utilities[(name, phase)]
             elif (name, phase) in first_weight_list:
-                first_weight_list[(name, phase)].value = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[0] = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[1] = self.utilities[(name, phase)]
             else:
                 third_weight_list[(name, phase)] = self.utilities[(name, phase)]
-        second_weight_list = { i : second_semiring.parse(f"({w[0]},{w[1]})") for (i, w) in second_weight_list.items() }
-        third_weight_list = { i : third_semiring.parse(w) for (i, w) in third_weight_list.items() }
+        second_weight_list = { i : second_semiring.parse(f"({w[0]},{w[1]},{w[1]})") for (i, w) in second_weight_list.items() }
+        third_weight_list = { i : third_semiring.parse(f"({w},{w})") for (i, w) in third_weight_list.items() }
 
         semirings = [ first_semiring, second_semiring, third_semiring ]
         weights_per_semiring = [ first_weight_list, second_weight_list, third_weight_list ]
-        transforms = [ "lambda w : w.value[1]", "lambda w : (1.0, w.value)" ]
+        transforms = [ "lambda w : (w.value[1], w.value[2])", "lambda w : (1.0, w.value[0], w.value[1])" ]
         NestedAlgebraicProgram.__init__(self, clingo_control, semirings, weights_per_semiring, transforms, self.queries)
 
     def _prepare_grounding(self, program):
