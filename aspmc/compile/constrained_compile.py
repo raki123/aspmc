@@ -11,6 +11,8 @@ import aspmc.config as config
 logger = logging.getLogger("aspmc")
 
 def compute_separator(graph, P, D, R):
+    if len(P) == 0 or len(R) == 0:
+        return []
     flow_graph = nx.DiGraph()
     N = graph.number_of_nodes()
     # 1 to N are nodes for incoming edges
@@ -126,18 +128,15 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
         # remember which clauses have been taken care of already
         done = [ False for _ in range(len(cnf.clauses)) ]
         
-    left_graphs = []
-    left_tds = []
     left_trees = []
     working_graph = graph.copy()
+    overall_l_components = set()
     for level in range(len(cnf.quantified) - 1):
         separator = separators[level]
         P = cnf.quantified[level]    
         # if the separator is empty we know all variables are defined or P is empty
         # either way, we have no restrictions here
         if len(separator) == 0:
-            left_graphs.append(None)
-            left_tds.append(None)
             left_trees.append(None)
             continue
         
@@ -150,10 +149,10 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
             if P & component:
                 l_components.update(component)
 
+        overall_l_components.update(l_components)
+
         if len(l_components) == 0:
             # we used P as the separator
-            left_graphs.append(None)
-            left_tds.append(None)
             left_trees.append(None)
         else:
             # also remove the left part from the working graph
@@ -164,18 +163,17 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
             separator = list(separator)
             clique = sum([ [ (separator[a], separator[b]) for a in range(b + 1, len(separator)) ] for b in range(len(separator)) ], [])
             l_graph.add_edges_from(clique)
-            left_graphs.append(l_graph)
             l_td = treedecomposition.from_graph(l_graph, solver = config.config["decos"], timeout = config.config["decot"])
             logger.info(f"X/D-Constrained Tree Decomposition #bags: {l_td.bags} treewidth: {l_td.width} #vertices: {l_td.vertices}")
             l_root = l_td.find_containing(separator)
             l_td.set_root(l_root)
             if tree_type.__name__ == vtree.Vtree.__name__:
                 l_td.remove(separator)
-            left_tds.append(l_td)
             l_tree = TD_to_tree(cnf, l_td, done = done, tree_type = tree_type)
             left_trees.append(l_tree)
             
-    right_graph = working_graph
+    right_graph = graph.copy()
+    right_graph.remove_nodes_from(overall_l_components)
     for level in range(len(cnf.quantified) - 1):
         separator = separators[level]
         separator = list(separator)
@@ -184,8 +182,8 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
     right_td = treedecomposition.from_graph(right_graph, solver = config.config["decos"], timeout = config.config["decot"])
     logger.info(f"X/D-Constrained Tree Decomposition #bags: {right_td.bags} treewidth: {right_td.width} #vertices: {right_td.vertices}")
     
-    # FIXME: what if separators[0] is empty?
     r_root = right_td.find_containing(separators[0])
+    assert(r_root is not None)
     right_td.set_root(r_root)
     
     if tree_type.__name__ == vtree.Vtree.__name__:
