@@ -131,8 +131,10 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
     left_trees = []
     working_graph = graph.copy()
     overall_l_components = set()
+    previous_separators = set()
     for level in range(len(cnf.quantified) - 1):
         separator = separators[level]
+        previous_separators.update(separator)
         P = cnf.quantified[level]    
         # if the separator is empty we know all variables are defined or P is empty
         # either way, we have no restrictions here
@@ -158,7 +160,7 @@ def construct_tree(cnf, graph, separators, tree_type = dtree.Dtree):
             # also remove the left part from the working graph
             working_graph.remove_nodes_from(l_components)
             # we found a better separator than P
-            l_components.update(separator)
+            l_components.update(previous_separators)
             l_graph = graph.subgraph(l_components).copy()
             separator = list(separator)
             clique = sum([ [ (separator[a], separator[b]) for a in range(b + 1, len(separator)) ] for b in range(len(separator)) ], [])
