@@ -6,7 +6,7 @@ class MinMaxPlusFloat(object):
         self.decisions = decisions
 
     def __add__(self, other):
-        first = self if self.value[0] <= other.value[0] else other
+        first = self if self.value[0] >= other.value[0] else other
         second = self if self.value[1] >= other.value[1] else other
         return MinMaxPlusFloat((first.value[0], second.value[1]), (first.decisions[0], second.decisions[1]))
 
@@ -14,7 +14,7 @@ class MinMaxPlusFloat(object):
         if self.value[0] > other.value[0]:
             self.value[0] = other.value[0]
             self.decisions[0] = other.decisions[0]
-        if self.value[1] < other.value[1]:
+        if self.value[1] > other.value[1]:
             self.value[1] = other.value[1]
             self.decisions[1] = other.decisions[1]
         return self
@@ -60,7 +60,7 @@ def is_idempotent():
     return True
 
 def zero():
-    return MinMaxPlusFloat((float("inf"), float("-inf")), (0, 0))
+    return MinMaxPlusFloat((float("-inf"), float("-inf")), (0, 0))
 def one():
     return MinMaxPlusFloat((0, 0), (0, 0))
 

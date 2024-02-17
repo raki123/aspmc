@@ -13,7 +13,7 @@ from lark import Lark
 from aspmc.parsing.lark_parser import GRAMMAR, ProblogTransformer
 from aspmc.util import *
 
-import aspmc.semirings.minmaxplusdecisions as first_semiring
+import aspmc.semirings.maxmaxplusdecisions as first_semiring
 import aspmc.semirings.twograd as second_semiring # the gradient semiring and the expected utility are the same
 import aspmc.semirings.minmaxplus as third_semiring 
 import aspmc.semirings.probabilistic as semiring
