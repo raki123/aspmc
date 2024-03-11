@@ -18,6 +18,7 @@ from aspmc.programs.mapprogram import MAPProblogProgram
 from aspmc.programs.mpeprogram import MPEProblogProgram
 from aspmc.programs.optprogram import OptProgram
 from aspmc.programs.dtpasprogram import DTPASProgram
+from aspmc.programs.credalprogram import CredalProgram
 
 from aspmc.compile.cnf import CNF
 
@@ -98,6 +99,7 @@ python main.py [-m .] [-st .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .
                                         * mapproblog        : take a problog program with extra evidence and map query atoms as input
                                         * mpeproblog        : take a problog program with extra evidence atoms as input
                                         * dtpasp            : take a probabilistic answer set program with extra decision and utility atoms as input
+                                        * credal            : take a probabilistic answer set program with credal semantics as input
     --strategy          -st STRATEGY    set solving strategy to STRATEGY:
                                         * flexible          : choose the solver flexibly 
                                         * compilation       : use knowledge compilation (default)
@@ -162,7 +164,7 @@ def main():
                 mode = sys.argv[2]
                 if mode != "problog" and mode != "asp" and mode != "smproblog" and mode != "meuproblog" \
                     and mode != "mapproblog" and mode != "mpeproblog" and mode != "optasp" and mode != "cnf" \
-                    and mode != "smodels" and mode != "dtpasp":
+                    and mode != "smodels" and mode != "dtpasp" and mode != "credal":
                     logger.error("  Unknown mode: " + mode)
                     exit(-1)
                 smodels = mode == "smodels"
@@ -257,6 +259,8 @@ def main():
         program = MPEProblogProgram(program_str, program_files)
     elif mode == "dtpasp":
         program = DTPASProgram(program_str, program_files)
+    elif mode == "credal":
+        program = CredalProgram(program_str, program_files)
     elif mode == "optasp":
         program = OptProgram(program_str, program_files)
     elif mode == "cnf":

@@ -96,6 +96,7 @@ python main.py [-m .] [-st .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .
                                         * mapproblog        : take a problog program with extra evidence and map query atoms as input
                                         * mpeproblog        : take a problog program with extra evidence atoms as input
                                         * dtpasp            : take a probabilistic answer set program with extra decision and utility atoms as input
+                                        * credal            : take a probabilistic answer set program with credal semantics as input
     --strategy          -st STRATEGY    set solving strategy to STRATEGY:
                                         * flexible          : choose the solver flexibly 
                                         * compilation       : use knowledge compilation (default)
