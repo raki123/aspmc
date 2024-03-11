@@ -668,10 +668,10 @@ class CNF(object):
 
 
     @staticmethod
-    def compile_two(file_name, knowledge_compiler = "c2d"):        
+    def compile_nested(file_name, knowledge_compiler = "c2d"):        
         """Compiles a CNF into an X/D-constrained circuit. The output circuit is in the file `file_name + ".nnf"`.
 
-        Currently supports c2d and miniC2D as knowledge compilers. 
+        Currently supports c2d (and miniC2D for only one level of nesting) as knowledge compilers. 
 
         For c2d assumes that there is:
             * a cnf file `file_name` 
@@ -714,15 +714,15 @@ class CNF(object):
             logger.error(f"Knowledge compilation failed with exit code {p.exitcode}.")
             exit(-1) 
 
-    def solve_compilation_two(self):
-        """Compiles a 2AMC instance over a two semirings into an X/D-constrained circuit and performs the algebraic model counting over the compiled circuit.
+    def solve_compilation_nested(self):
+        """Compiles a kAMC instance over a k semirings into an X/D-constrained circuit and performs the algebraic model counting over the compiled circuit.
 
-        Currently supports c2d and miniC2D as knowledge compilers. 
+        Currently supports c2d (and miniC2D for 2AMC) as knowledge compilers. 
         Generates an X/D-constrained D/Vtree by using the function in aspmc.compile.constrained_compile.
         How the tree decompositions are generated and which knowledge compiler is used is configured in aspmc.config.
 
         Returns:
-            object: The value of the 2AMC instance.
+            object: The value of the kAMC instance.
         """
         start = time.time()
         cnf_fd, cnf_tmp = tempfile.mkstemp()
@@ -739,6 +739,7 @@ class CNF(object):
             end = time.time()
             logger.info(f"Dtree time:               {end - start}")
         elif config.config["knowledge_compiler"] == "miniC2D":
+            assert(len(self.semirings) == 2)
             with os.fdopen(cnf_fd, 'wb') as cnf_file:
                 self.to_stream(cnf_file)
             (_, v3) = concom.tree_from_cnf(self, tree_type=vtree.Vtree)
@@ -751,7 +752,7 @@ class CNF(object):
             exit(-1)
         # perform the compilation
         start = time.time()
-        CNF.compile_two(cnf_tmp, knowledge_compiler = config.config["knowledge_compiler"])
+        CNF.compile_nested(cnf_tmp, knowledge_compiler = config.config["knowledge_compiler"])
         end = time.time()
         logger.info(f"Compilation time:         {end - start}")
         # prepare the inputs
@@ -852,7 +853,7 @@ class CNF(object):
     def solve_compilation(self, preprocessing = False):   
         """Compiles an AMC instance and performs the algebraic model counting over the compiled circuit.
 
-        Calls `compile_single` or `compile_two`.
+        Calls `compile_single` or `compile_nested`.
         How the tree decompositions are generated and which knowledge compiler is used is configured in aspmc.config.
 
         Returns:
@@ -872,7 +873,7 @@ class CNF(object):
         if len(self.semirings) <= 1:
             results = self.solve_compilation_single()
         else:
-            results = self.solve_compilation_two()
+            results = self.solve_compilation_nested()
         logger.info("------------------------------------------------------------")
         return results
 

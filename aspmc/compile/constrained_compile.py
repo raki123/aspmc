@@ -72,11 +72,12 @@ def tree_from_cnf(cnf, tree_type = dtree.Dtree):
 
     Does this by: 
 
-    * getting the atoms `X` as `cnf.quanfied[0]`. So the atoms that are quantified over the first semiring.
+    * getting the atoms `X` from `cnf.quanfied[0]`. So the atoms that are quantified over the first semiring.
     * getting the atoms `D` that are defined by `X` w.r.t. the cnf.
     * getting a separator `S` between the atoms in `X` and the ones neither in `X` nor `D` using atoms from `X` or `D`.
     * the constructed X/D-constrained D/Vtree then ensures that all the atoms in `S` are decided first,
         meaning that all the atoms in `X` can be decided before/independently of the atoms that are not in `X` or `D`.
+    * if there are more than two semirings, this is repeated recursively.
 
     Args:
         cnf (:obj:`aspmc.compile.cnf.CNF`): The extended cnf for which a tree should be constructed. Must have exactly two semirings.
@@ -86,7 +87,7 @@ def tree_from_cnf(cnf, tree_type = dtree.Dtree):
     Returns:
         (iterable, aspmc.graph.bintree.bintree): 
 
-        The separator `S` that was computed.
+        The vertices in the separator(s) `S` that was (were) computed.
         
         The root of the D/Vtree that was constructed.
     """

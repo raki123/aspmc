@@ -81,32 +81,61 @@ Note that they are only available for research use.
 The basic usage is
 
 ```
-python main.py [-m .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .] [-h] [<INPUT-FILES>]
-    --mode          -m  MODE        set input mode to MODE:
-                                    * asp           : take a normal answer set program as input
-                                    * problog       : take a problog program as input
-                                    * smproblog     : take a problog program with negations as input
-                                    * meuproblog    : take a problog program with extra decision and utility atoms as input
-                                    * mapproblog    : take a problog program with extra evidence and map query atoms as input
-    --count         -c              not only output the equivalent cnf as out.cnf but also performs (algebraic) counting of the answer sets
-    --semiring      -s  SEMIRING    use the semiring specified in the python file aspmc/semirings/SEMIRING.py
-                                    only useful with -m problog
-    --no_pp         -n              does not perform cycle breaking and outputs a normalized version of the input program as `out.lp`
-                                    the result is equivalent, ground and does not contain annotated disjunctions.
-    --treewidth     -t              print the treewidth of the resulting CNF
-    --decos         -ds SOLVER      set the solver that computes tree decompositions to SOLVER:
-                                    * flow-cutter   : uses flow_cutter_pace17 (default)
-    --decot         -dt SECONDS     set the timeout for computing tree decompositions to SECONDS (default: 1)
-    --knowlege      -k  COMPILER    set the knowledge compiler to COMPILER:
-                                    * sharpsat-td   : uses a compilation version of sharpsat-td (default)
-                                    * d4            : uses the (slightly modified) d4 compiler. 
-                                    * c2d           : uses the c2d compiler. 
-                                    * miniC2D       : uses the miniC2D compiler. 
-    --guide_clark   -g  GUIDE       set the tree decomposition type to use to guide the clark completion to GUIDE:
-                                    * none          : preform the normal clark completion without guidance
-                                    * ors           : guide for or nodes only 
-                                    * both          : guide for both `and` and `or` nodes (default)
-    --help          -h              print this help and exit
+aspmc: An Algebraic Answer Set Counter
+aspmc version 1.1.0, Mar 11, 2024
+
+python main.py [-m .] [-st .] [-c] [-s .] [-n] [-t] [-ds .] [-dt .] [-k .] [-g .] [-b .] [-v .] [-h] [<INPUT-FILES>]
+    --mode              -m  MODE        set input mode to MODE:
+                                        * asp               : take a normal answer set program as input (default)
+                                        * smodels           : take a normal answer set program in smodels format as input
+                                        * optasp            : take a normal answer set program with weak constraints as input
+                                        * cnf               : take an (extended) cnf as input
+                                        * problog           : take a problog program as input
+                                        * smproblog         : take a problog program with negations as input
+                                        * meuproblog        : take a problog program with extra decision and utility atoms as input
+                                        * mapproblog        : take a problog program with extra evidence and map query atoms as input
+                                        * mpeproblog        : take a problog program with extra evidence atoms as input
+                                        * dtpasp            : take a probabilistic answer set program with extra decision and utility atoms as input
+    --strategy          -st STRATEGY    set solving strategy to STRATEGY:
+                                        * flexible          : choose the solver flexibly 
+                                        * compilation       : use knowledge compilation (default)
+    --count             -c              not only output the equivalent cnf as out.cnf but also performs (algebraic) counting of the answer sets
+    --semiring          -s  SEMIRING    use the semiring specified in the python file aspmc/semirings/SEMIRING.py
+                                        only useful with -m problog
+    --no_pp             -n              does not perform cycle breaking and outputs a normalized version of the input program as `out.lp`
+                                        the result is equivalent, ground and does not contain annotated disjunctions.
+    --treewidth         -t              print the treewidth of the resulting CNF
+    --decos             -ds SOLVER      set the solver that computes tree decompositions to SOLVER:
+                                        * flow-cutter       : uses flow_cutter_pace17 (default)
+    --decot             -dt SECONDS     set the timeout for computing tree decompositions to SECONDS (default: 1)
+    --knowlege          -k  COMPILER    set the knowledge compiler to COMPILER:
+                                        * sharpsat-td       : uses a compilation version of sharpsat-td (default)
+                                        * sharpsat-td-live  : uses a compilation version of sharpsat-td where compilation and counting are simultaneous
+                                        * d4                : uses the (slightly modified) d4 compiler. 
+                                        * c2d               : uses the c2d compiler. 
+                                        * miniC2D           : uses the miniC2D compiler. 
+    --guide_clark       -g  GUIDE       set the tree decomposition type to use to guide the clark completion to GUIDE:
+                                        * none              : preform the normal clark completion without guidance
+                                        * ors               : guide for or nodes only 
+                                        * both              : guide for both `and` and `or` nodes (default)
+                                        * adaptive          : guide `both` that takes into account the cost of auxilliary variables 
+                                        * choose            : try to choose the best of the previous options bases on expected treewidth
+    --cycle-breaking    -b  STRATEGY    set the cycle-breaking strategy to STRATEGY:
+                                        * none              : do not perform cycle-breaking, not suitable for model counting
+                                        * tp                : perform tp-unfolding, suitable for model counting (default)
+                                        * binary            : use the strategy of Janhunen without local and global ranking constraints
+                                                                not suitable for model counting
+                                        * binary-opt        : use the strategy of Hecher, not suitable for model counting
+                                        * lt                : use the strategy of Lin and Zhao, not suitable for model counting
+                                        * lt-opt            : use a modified version of Lin and Zhao's strategy with a smaller encoding,
+                                                                not suitable for model counting
+    --verbosity         -v  VERBOSITY   set the logging level to VERBOSITY:
+                                        * debug             : print everything
+                                        * info              : print as usual
+                                        * result            : only print results, warnings and errors
+                                        * warning           : only print warnings and errors
+                                        * errors            : only print errors
+    --help              -h              print this help and exit
 ```
 
 ### Examples

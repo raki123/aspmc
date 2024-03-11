@@ -5,19 +5,17 @@ class ConstrainedDDNNF(object):
     # assumes that the DDNNF is smooth
     @staticmethod
     def parse_wmc(path, weights, cnf):
-        """Performs (two) algebraic model counting over an X/D-constrained circuit that is smooth while parsing it.
+        """Performs nested algebraic model counting over an X/D-constrained circuit that is smooth while parsing it.
         
         Args:
             path (:obj:`string`): The path to the file that contains the circuit.
             weights (:obj:`string`): The weights of the literals. The weight for literal `v` is in `weights[2*(v-1)]`, the one for `-v` is in `weights[2*(v-1)+1]`
-            P (:obj:`iterable`): The set of variables that are quantified over the first semiring.
-            first_semiring (:obj:`module`): The module of the first semiring.
-            second_semiring (:obj:`module`): The module of the second semiring.
-            transform (:obj:`string`): The transformation function used to transform a value from the second semiring into a value from the first semiring.
-                Will be used as
+            cnf (:obj:`aspmc.compile.CNF`): The CNF which was compiled. Must contain the semirings, quantification partition (telling us which variables are to be interpreted over which semiring), and the transformation functions:
+                transform (:obj:`string`): The transformation function used to transform a value from the second semiring into a value from the first semiring.
+                    Will be used as
 
-                        f_transform = eval(transform)
-                        transform = lambda x : first_semiring.from_value(f_transform(x))
+                            f_transform = eval(transform)
+                            transform = lambda x : first_semiring.from_value(f_transform(x))
         Returns:
             (:obj:`object`): The algebraic model count.
         """
