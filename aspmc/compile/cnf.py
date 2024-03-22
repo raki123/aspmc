@@ -599,7 +599,7 @@ class CNF(object):
             p.wait()
             p.stdout.close()        
             if p.returncode != 0:
-                logger.error(f"Knowledge compilation failed with exit code {p.exitcode}.")
+                logger.error(f"Knowledge compilation failed with exit code {p.returncode}.")
                 exit(-1) 
             end = time.time()
             logger.info(f"Counting & Compilation time:  {end - start}")
@@ -711,7 +711,7 @@ class CNF(object):
         p.stdout.close()
 
         if p.returncode != 0:
-            logger.error(f"Knowledge compilation failed with exit code {p.exitcode}.")
+            logger.error(f"Knowledge compilation failed with exit code {p.returncode}.")
             exit(-1) 
 
     def solve_compilation_nested(self):
