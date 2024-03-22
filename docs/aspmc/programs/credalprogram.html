@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>aspmc.programs.smprogram API documentation</title>
-<meta name="description" content="Program module providing the smprogam class." />
+<title>aspmc.programs.credalprogram API documentation</title>
+<meta name="description" content="Program module providing the credal program class." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -19,10 +19,10 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>aspmc.programs.smprogram</code></h1>
+<h1 class="title">Module <code>aspmc.programs.credalprogram</code></h1>
 </header>
 <section id="section-intro">
-<p>Program module providing the smprogam class.</p>
+<p>Program module providing the credal program class.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -30,7 +30,7 @@
 <pre><code class="python">#!/usr/bin/env python3
 
 &#34;&#34;&#34;
-Program module providing the smprogam class.
+Program module providing the credal program class.
 &#34;&#34;&#34;
 import logging
 import numpy as np
@@ -38,20 +38,22 @@ import numpy as np
 from aspmc.parsing.clingoparser.clingoext import Control
 
 from aspmc.programs.problogprogram import ProblogProgram
-from aspmc.programs.twoalgebraicprogram import TwoAlgebraicProgram
+from aspmc.programs.nestedalgebraicprogram import NestedAlgebraicProgram
 from lark import Lark
 from aspmc.parsing.lark_parser import GRAMMAR, ProblogTransformer, ProbabilisticRule, Atom
 from aspmc.util import *
 
-import aspmc.semirings.probabilistic as first_semiring
-import aspmc.semirings.two_nat as second_semiring
+import aspmc.semirings.probabilistic as parse_semiring
+import aspmc.semirings.credal as semiring
+
+import aspmc.config as config
 
 logger = logging.getLogger(&#34;aspmc&#34;)
 
-class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):    
-    &#34;&#34;&#34;A class for SMProbLog programs. 
+class CredalProgram(NestedAlgebraicProgram, ProblogProgram):    
+    &#34;&#34;&#34;A class for CredalProgram programs. 
 
-    Subclasses `TwoAlgebraicProgram` since it is a second level problem.
+    Subclasses `NestedAlgebraicProgram` since it is a second level problem.
 
     Overrides the `_prepare_grounding` method to deal with negative atoms in the head in the same way as ProbLog.
 
@@ -62,7 +64,7 @@ class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):
         ProbLog syntax that should be included. May be an empty list.
     &#34;&#34;&#34;
     def __init__(self, program_str, program_files):
-        self.semiring = first_semiring
+        self.semiring = parse_semiring
         self.weights = {}
         self.queries = []
         self.annotated_disjunctions = []
@@ -82,10 +84,15 @@ class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):
         # initialize weights
         weight_list = {}
         for name in self.weights:
-            weight_list[(name, True)] = self.weights[name]
-            weight_list[(name, False)] = 1 - self.weights[name]
+            weight_list[(name, True)] = (self.weights[name], self.weights[name])
+            weight_list[(name, False)] = (1 - self.weights[name], 1 - self.weights[name])
 
-        TwoAlgebraicProgram.__init__(self, clingo_control, first_semiring, second_semiring, weight_list, {}, &#34;lambda w : w[0]/w[1]&#34;, self.queries)
+        self.first_weights = weight_list
+
+        semirings = [ semiring, semiring ]
+        weights_per_semiring = [ weight_list, {} ]
+        transforms = [ &#34;lambda w : (float(w[0] == w[1] and w[0] &gt; 0), float(w[0] &gt; 0))&#34; ]
+        NestedAlgebraicProgram.__init__(self, clingo_control, semirings, weights_per_semiring, transforms, self.queries)
 
     def _prepare_grounding(self, program):
         # take care of the transformation for negated head atoms
@@ -142,13 +149,13 @@ class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):
         for query in self.queries:
             result += f&#34;query({query}).\n&#34;
         return result
-
+    
     def get_weights(self):
         varMap = { name : var for var, name in self._nameMap.items() }
         weight_list = super().get_weights()
         for i, query in enumerate(self.queries):
             if (query, True) in self.first_weights:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.first_semiring.zero()
+                weight_list[neg(to_pos(varMap[query]))][i] = self.semiring.zero()
             else:
                 weight_list[neg(to_pos(varMap[query]))][i] = np.array([0.0, 1.0])
         return weight_list</code></pre>
@@ -163,13 +170,13 @@ class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="aspmc.programs.smprogram.SMProblogProgram"><code class="flex name class">
-<span>class <span class="ident">SMProblogProgram</span></span>
+<dt id="aspmc.programs.credalprogram.CredalProgram"><code class="flex name class">
+<span>class <span class="ident">CredalProgram</span></span>
 <span>(</span><span>program_str, program_files)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A class for SMProbLog programs. </p>
-<p>Subclasses <code>TwoAlgebraicProgram</code> since it is a second level problem.</p>
+<div class="desc"><p>A class for CredalProgram programs. </p>
+<p>Subclasses <code>NestedAlgebraicProgram</code> since it is a second level problem.</p>
 <p>Overrides the <code>_prepare_grounding</code> method to deal with negative atoms in the head in the same way as ProbLog.</p>
 <h2 id="args">Args</h2>
 <p>program_str (:obj:<code>string</code>): A string containing a part of the program in ProbLog syntax.
@@ -180,10 +187,10 @@ ProbLog syntax that should be included. May be an empty list.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SMProblogProgram(TwoAlgebraicProgram, ProblogProgram):    
-    &#34;&#34;&#34;A class for SMProbLog programs. 
+<pre><code class="python">class CredalProgram(NestedAlgebraicProgram, ProblogProgram):    
+    &#34;&#34;&#34;A class for CredalProgram programs. 
 
-    Subclasses `TwoAlgebraicProgram` since it is a second level problem.
+    Subclasses `NestedAlgebraicProgram` since it is a second level problem.
 
     Overrides the `_prepare_grounding` method to deal with negative atoms in the head in the same way as ProbLog.
 
@@ -194,7 +201,7 @@ ProbLog syntax that should be included. May be an empty list.</p></div>
         ProbLog syntax that should be included. May be an empty list.
     &#34;&#34;&#34;
     def __init__(self, program_str, program_files):
-        self.semiring = first_semiring
+        self.semiring = parse_semiring
         self.weights = {}
         self.queries = []
         self.annotated_disjunctions = []
@@ -214,10 +221,15 @@ ProbLog syntax that should be included. May be an empty list.</p></div>
         # initialize weights
         weight_list = {}
         for name in self.weights:
-            weight_list[(name, True)] = self.weights[name]
-            weight_list[(name, False)] = 1 - self.weights[name]
+            weight_list[(name, True)] = (self.weights[name], self.weights[name])
+            weight_list[(name, False)] = (1 - self.weights[name], 1 - self.weights[name])
 
-        TwoAlgebraicProgram.__init__(self, clingo_control, first_semiring, second_semiring, weight_list, {}, &#34;lambda w : w[0]/w[1]&#34;, self.queries)
+        self.first_weights = weight_list
+
+        semirings = [ semiring, semiring ]
+        weights_per_semiring = [ weight_list, {} ]
+        transforms = [ &#34;lambda w : (float(w[0] == w[1] and w[0] &gt; 0), float(w[0] &gt; 0))&#34; ]
+        NestedAlgebraicProgram.__init__(self, clingo_control, semirings, weights_per_semiring, transforms, self.queries)
 
     def _prepare_grounding(self, program):
         # take care of the transformation for negated head atoms
@@ -274,39 +286,39 @@ ProbLog syntax that should be included. May be an empty list.</p></div>
         for query in self.queries:
             result += f&#34;query({query}).\n&#34;
         return result
-
+    
     def get_weights(self):
         varMap = { name : var for var, name in self._nameMap.items() }
         weight_list = super().get_weights()
         for i, query in enumerate(self.queries):
             if (query, True) in self.first_weights:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.first_semiring.zero()
+                weight_list[neg(to_pos(varMap[query]))][i] = self.semiring.zero()
             else:
                 weight_list[neg(to_pos(varMap[query]))][i] = np.array([0.0, 1.0])
         return weight_list</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram" href="twoalgebraicprogram.html#aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram">TwoAlgebraicProgram</a></li>
+<li><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram" href="nestedalgebraicprogram.html#aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram">NestedAlgebraicProgram</a></li>
 <li><a title="aspmc.programs.problogprogram.ProblogProgram" href="problogprogram.html#aspmc.programs.problogprogram.ProblogProgram">ProblogProgram</a></li>
 <li><a title="aspmc.programs.program.Program" href="program.html#aspmc.programs.program.Program">Program</a></li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram" href="twoalgebraicprogram.html#aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram">TwoAlgebraicProgram</a></b></code>:
+<li><code><b><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram" href="nestedalgebraicprogram.html#aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram">NestedAlgebraicProgram</a></b></code>:
 <ul class="hlist">
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.choose_clark_completion" href="program.html#aspmc.programs.program.Program.choose_clark_completion">choose_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.clark_completion" href="program.html#aspmc.programs.program.Program.clark_completion">clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.encoding_stats" href="program.html#aspmc.programs.program.Program.encoding_stats">encoding_stats</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_cnf" href="program.html#aspmc.programs.program.Program.get_cnf">get_cnf</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_queries" href="program.html#aspmc.programs.program.Program.get_queries">get_queries</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_weights" href="program.html#aspmc.programs.program.Program.get_weights">get_weights</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.td_guided_both_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_both_clark_completion">td_guided_both_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.td_guided_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_clark_completion">td_guided_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.tpUnfold" href="program.html#aspmc.programs.program.Program.tpUnfold">tpUnfold</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.treeprocess" href="program.html#aspmc.programs.program.Program.treeprocess">treeprocess</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.write_dimacs" href="program.html#aspmc.programs.program.Program.write_dimacs">write_dimacs</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.write_prog" href="program.html#aspmc.programs.program.Program.write_prog">write_prog</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.choose_clark_completion" href="program.html#aspmc.programs.program.Program.choose_clark_completion">choose_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.clark_completion" href="program.html#aspmc.programs.program.Program.clark_completion">clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.encoding_stats" href="program.html#aspmc.programs.program.Program.encoding_stats">encoding_stats</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_cnf" href="program.html#aspmc.programs.program.Program.get_cnf">get_cnf</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_queries" href="program.html#aspmc.programs.program.Program.get_queries">get_queries</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_weights" href="program.html#aspmc.programs.program.Program.get_weights">get_weights</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.td_guided_both_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_both_clark_completion">td_guided_both_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.td_guided_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_clark_completion">td_guided_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.tpUnfold" href="program.html#aspmc.programs.program.Program.tpUnfold">tpUnfold</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.treeprocess" href="program.html#aspmc.programs.program.Program.treeprocess">treeprocess</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.write_dimacs" href="program.html#aspmc.programs.program.Program.write_dimacs">write_dimacs</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.write_prog" href="program.html#aspmc.programs.program.Program.write_prog">write_prog</a></code></li>
 </ul>
 </li>
 </ul>
@@ -328,7 +340,7 @@ ProbLog syntax that should be included. May be an empty list.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="aspmc.programs.smprogram.SMProblogProgram" href="#aspmc.programs.smprogram.SMProblogProgram">SMProblogProgram</a></code></h4>
+<h4><code><a title="aspmc.programs.credalprogram.CredalProgram" href="#aspmc.programs.credalprogram.CredalProgram">CredalProgram</a></code></h4>
 </li>
 </ul>
 </li>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>aspmc.semirings.maxtimesdecisions API documentation</title>
+<title>aspmc.semirings.twograd API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,66 +19,69 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>aspmc.semirings.maxtimesdecisions</code></h1>
+<h1 class="title">Module <code>aspmc.semirings.twograd</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">names = []
-
-class MaxTimesFloat(object):
-    def __init__(self, value, decisions):
+<pre><code class="python">class TwoGradient(object):
+    def __init__(self, value):
         self.value = value
-        self.decisions = decisions
 
     def __add__(self, other):
-        return self if self.value &gt;= other.value else other
+        return TwoGradient((self.value[0] + other.value[0], self.value[1] + other.value[1], self.value[2] + other.value[2]))
 
     def __iadd__(self, other):
-        if self.value &lt; other.value:
-            self.value = other.value
-            self.decisions = other.decisions
+        self.value[0] += other.value[0]
+        self.value[1] += other.value[1]
+        self.value[2] += other.value[2]
         return self
 
     def __mul__(self, other):
-        return MaxTimesFloat(self.value * other.value, self.decisions | other.decisions)
+        return TwoGradient((self.value[0] * other.value[0], 
+                            self.value[0] * other.value[1] + self.value[1] * other.value[0], 
+                            self.value[0] * other.value[2] + self.value[2] * other.value[0]))
 
     def __imul__(self, other):
-        self.value *= other.value
-        self.decisions |= other.decisions
+        self.value[1] *= other.value[0]
+        self.value[1] += self.value[0] * other.value[1]
+        self.value[2] *= other.value[0]
+        self.value[2] += self.value[0] * other.value[2]
+        self.value[0] *= other.value[0]
         return self
 
     def __str__(self):
-        decisions = [ names[i] for i in range(len(names)) if self.decisions &amp; 2**i ]
-        decisions = &#34;, &#34;.join(decisions)
-        return f&#34;{self.value} with true atoms: {decisions}&#34;
+        return str(self.value)
 
     def __repr__(self):
-        return str(self)
+        return repr(self.value)
 
 def parse(value, atom = None):
     value = value[1:-1]
     value = value.split(&#39;,&#39;)
-    return MaxTimesFloat(float(value[0]), int(value[1]))
+    return TwoGradient((float(value[0]), float(value[1]), float(value[2])))
 
 def from_value(value):
-    return MaxTimesFloat(value, 0)
+    return TwoGradient(value)
 
 def negate(value):
-    return one()
+    return TwoGradient((1.0 - value.value[0], -value.value[1], -value.value[2]))
 
 def to_string(value):
-    return f&#34;({value.value},{value.decisions})&#34;
+    return f&#34;({value.value[0]},{value.value[1]},{value.value[2]})&#34;
+
+def is_idempotent():
+    return False
 
 def zero():
-    return MaxTimesFloat(float(&#34;-inf&#34;), 0)
+    return TwoGradient((0.0, 0.0, 0.0))
 def one():
-    return MaxTimesFloat(1, 0)
+    return TwoGradient((1.0, 0.0, 0.0))
 
 dtype = object
-pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
+pattern = &#39;\([+-]?([0-9]*[.])?[0-9]+,[+-]?([0-9]*[.])?[0-9],[+-]?([0-9]*[.])?[0-9]+\)&#39;</code></pre>
 </details>
 </section>
 <section>
@@ -88,7 +91,7 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="aspmc.semirings.maxtimesdecisions.from_value"><code class="name flex">
+<dt id="aspmc.semirings.twograd.from_value"><code class="name flex">
 <span>def <span class="ident">from_value</span></span>(<span>value)</span>
 </code></dt>
 <dd>
@@ -98,10 +101,23 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def from_value(value):
-    return MaxTimesFloat(value, 0)</code></pre>
+    return TwoGradient(value)</code></pre>
 </details>
 </dd>
-<dt id="aspmc.semirings.maxtimesdecisions.negate"><code class="name flex">
+<dt id="aspmc.semirings.twograd.is_idempotent"><code class="name flex">
+<span>def <span class="ident">is_idempotent</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_idempotent():
+    return False</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.twograd.negate"><code class="name flex">
 <span>def <span class="ident">negate</span></span>(<span>value)</span>
 </code></dt>
 <dd>
@@ -111,10 +127,10 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def negate(value):
-    return one()</code></pre>
+    return TwoGradient((1.0 - value.value[0], -value.value[1], -value.value[2]))</code></pre>
 </details>
 </dd>
-<dt id="aspmc.semirings.maxtimesdecisions.one"><code class="name flex">
+<dt id="aspmc.semirings.twograd.one"><code class="name flex">
 <span>def <span class="ident">one</span></span>(<span>)</span>
 </code></dt>
 <dd>
@@ -124,10 +140,10 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def one():
-    return MaxTimesFloat(1, 0)</code></pre>
+    return TwoGradient((1.0, 0.0, 0.0))</code></pre>
 </details>
 </dd>
-<dt id="aspmc.semirings.maxtimesdecisions.parse"><code class="name flex">
+<dt id="aspmc.semirings.twograd.parse"><code class="name flex">
 <span>def <span class="ident">parse</span></span>(<span>value, atom=None)</span>
 </code></dt>
 <dd>
@@ -139,10 +155,10 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <pre><code class="python">def parse(value, atom = None):
     value = value[1:-1]
     value = value.split(&#39;,&#39;)
-    return MaxTimesFloat(float(value[0]), int(value[1]))</code></pre>
+    return TwoGradient((float(value[0]), float(value[1]), float(value[2])))</code></pre>
 </details>
 </dd>
-<dt id="aspmc.semirings.maxtimesdecisions.to_string"><code class="name flex">
+<dt id="aspmc.semirings.twograd.to_string"><code class="name flex">
 <span>def <span class="ident">to_string</span></span>(<span>value)</span>
 </code></dt>
 <dd>
@@ -152,10 +168,10 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def to_string(value):
-    return f&#34;({value.value},{value.decisions})&#34;</code></pre>
+    return f&#34;({value.value[0]},{value.value[1]},{value.value[2]})&#34;</code></pre>
 </details>
 </dd>
-<dt id="aspmc.semirings.maxtimesdecisions.zero"><code class="name flex">
+<dt id="aspmc.semirings.twograd.zero"><code class="name flex">
 <span>def <span class="ident">zero</span></span>(<span>)</span>
 </code></dt>
 <dd>
@@ -165,7 +181,7 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def zero():
-    return MaxTimesFloat(float(&#34;-inf&#34;), 0)</code></pre>
+    return TwoGradient((0.0, 0.0, 0.0))</code></pre>
 </details>
 </dd>
 </dl>
@@ -173,9 +189,9 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="aspmc.semirings.maxtimesdecisions.MaxTimesFloat"><code class="flex name class">
-<span>class <span class="ident">MaxTimesFloat</span></span>
-<span>(</span><span>value, decisions)</span>
+<dt id="aspmc.semirings.twograd.TwoGradient"><code class="flex name class">
+<span>class <span class="ident">TwoGradient</span></span>
+<span>(</span><span>value)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -183,35 +199,37 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MaxTimesFloat(object):
-    def __init__(self, value, decisions):
+<pre><code class="python">class TwoGradient(object):
+    def __init__(self, value):
         self.value = value
-        self.decisions = decisions
 
     def __add__(self, other):
-        return self if self.value &gt;= other.value else other
+        return TwoGradient((self.value[0] + other.value[0], self.value[1] + other.value[1], self.value[2] + other.value[2]))
 
     def __iadd__(self, other):
-        if self.value &lt; other.value:
-            self.value = other.value
-            self.decisions = other.decisions
+        self.value[0] += other.value[0]
+        self.value[1] += other.value[1]
+        self.value[2] += other.value[2]
         return self
 
     def __mul__(self, other):
-        return MaxTimesFloat(self.value * other.value, self.decisions | other.decisions)
+        return TwoGradient((self.value[0] * other.value[0], 
+                            self.value[0] * other.value[1] + self.value[1] * other.value[0], 
+                            self.value[0] * other.value[2] + self.value[2] * other.value[0]))
 
     def __imul__(self, other):
-        self.value *= other.value
-        self.decisions |= other.decisions
+        self.value[1] *= other.value[0]
+        self.value[1] += self.value[0] * other.value[1]
+        self.value[2] *= other.value[0]
+        self.value[2] += self.value[0] * other.value[2]
+        self.value[0] *= other.value[0]
         return self
 
     def __str__(self):
-        decisions = [ names[i] for i in range(len(names)) if self.decisions &amp; 2**i ]
-        decisions = &#34;, &#34;.join(decisions)
-        return f&#34;{self.value} with true atoms: {decisions}&#34;
+        return str(self.value)
 
     def __repr__(self):
-        return str(self)</code></pre>
+        return repr(self.value)</code></pre>
 </details>
 </dd>
 </dl>
@@ -230,18 +248,19 @@ pattern = &#39;([+-]?([0-9]*[.])?[0-9]+,[0-9]+)&#39;</code></pre>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
-<li><code><a title="aspmc.semirings.maxtimesdecisions.from_value" href="#aspmc.semirings.maxtimesdecisions.from_value">from_value</a></code></li>
-<li><code><a title="aspmc.semirings.maxtimesdecisions.negate" href="#aspmc.semirings.maxtimesdecisions.negate">negate</a></code></li>
-<li><code><a title="aspmc.semirings.maxtimesdecisions.one" href="#aspmc.semirings.maxtimesdecisions.one">one</a></code></li>
-<li><code><a title="aspmc.semirings.maxtimesdecisions.parse" href="#aspmc.semirings.maxtimesdecisions.parse">parse</a></code></li>
-<li><code><a title="aspmc.semirings.maxtimesdecisions.to_string" href="#aspmc.semirings.maxtimesdecisions.to_string">to_string</a></code></li>
-<li><code><a title="aspmc.semirings.maxtimesdecisions.zero" href="#aspmc.semirings.maxtimesdecisions.zero">zero</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.from_value" href="#aspmc.semirings.twograd.from_value">from_value</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.is_idempotent" href="#aspmc.semirings.twograd.is_idempotent">is_idempotent</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.negate" href="#aspmc.semirings.twograd.negate">negate</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.one" href="#aspmc.semirings.twograd.one">one</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.parse" href="#aspmc.semirings.twograd.parse">parse</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.to_string" href="#aspmc.semirings.twograd.to_string">to_string</a></code></li>
+<li><code><a title="aspmc.semirings.twograd.zero" href="#aspmc.semirings.twograd.zero">zero</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="aspmc.semirings.maxtimesdecisions.MaxTimesFloat" href="#aspmc.semirings.maxtimesdecisions.MaxTimesFloat">MaxTimesFloat</a></code></h4>
+<h4><code><a title="aspmc.semirings.twograd.TwoGradient" href="#aspmc.semirings.twograd.TwoGradient">TwoGradient</a></code></h4>
 </li>
 </ul>
 </li>

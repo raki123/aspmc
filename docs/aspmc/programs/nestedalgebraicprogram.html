@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>aspmc.programs.twoalgebraicprogram API documentation</title>
-<meta name="description" content="Program module providing the two algebraic progam class." />
+<title>aspmc.programs.nestedalgebraicprogram API documentation</title>
+<meta name="description" content="Program module providing the nested algebraic progam class." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -19,28 +19,26 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>aspmc.programs.twoalgebraicprogram</code></h1>
+<h1 class="title">Module <code>aspmc.programs.nestedalgebraicprogram</code></h1>
 </header>
 <section id="section-intro">
-<p>Program module providing the two algebraic progam class.</p>
+<p>Program module providing the nested algebraic progam class.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">&#34;&#34;&#34;
-Program module providing the two algebraic progam class.
+Program module providing the nested algebraic progam class.
 &#34;&#34;&#34;
-import numpy as np
 
-import logging
-logger = logging.getLogger(&#34;aspmc&#34;)
+import numpy as np
 
 from aspmc.programs.program import Program
 
 from aspmc.util import *
 
-class TwoAlgebraicProgram(Program):    
-    &#34;&#34;&#34;A class for programs with weights over two semirings. 
+class NestedAlgebraicProgram(Program):    
+    &#34;&#34;&#34;A class for programs with weights over more than two semirings. 
 
     This is supposed to be an abstract class in the sense that it should used and instantiated
     by subclasses, rather than parsed itself.
@@ -49,80 +47,81 @@ class TwoAlgebraicProgram(Program):
 
     Args:
         clingo_control (:obj:`Control`): The clingo control object having the rules of the spanning program.
-        first_semiring (:obj:`module`): The first semiring module.
-        second_semiring (:obj:`module`): The second semiring module.
-        first_weights (:obj:`dict`): The weights over the first semiring. 
+        semirings (:obj:`list[module]`): The list of semiring modules.
+        weights (:obj:`list[dict]`): The list of weights over the semirings in order of the semirings. 
             Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
             and `phase` is its polarity (`True` for true), to their weight.
-        second_weights (:obj:`dict`): The weights over the second semiring. 
-            Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
-            and `phase` is its polarity (`True` for true), to their weight.
-        transform (:obj:`string`): A string representation of the function that transforms a value from the first
-            into a value from the second semiring.
+        transforms (:obj:`list[string]`): A list of string representations of the functions that transforms a value 
+            from the ith into a value from the (i-1)th semiring.
         queries (:obj:`list`): A list of names of atoms that should be queried. 
             Specify the empty list for an overall weight query.
 
     Attributes:
-        first_semiring (:obj:`module`): The first semiring module.
-        second_semiring (:obj:`module`): The second semiring module.
-        first_weights (:obj:`dict`): The weights over the first semiring. 
+        semirings (:obj:`list[module]`): The list of semiring modules.
+        weights (:obj:`list[dict]`): The list of weights over the semirings in order of the semirings. 
             Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
             and `phase` is its polarity (`True` for true), to their weight.
-        second_weights (:obj:`dict`): The weights over the second semiring. 
-            Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
-            and `phase` is its polarity (`True` for true), to their weight.
-        transform (:obj:`string`): A string representation of the function that transforms a value from the first
-            into a value from the second semiring.
+        transforms (:obj:`list[string]`): A list of string representations of the functions that transforms a value 
+            from the ith into a value from the (i-1)th semiring.
         queries (:obj:`list`): A list of names of atoms that should be queried. 
             Specify the empty list for an overall weight query.
     &#34;&#34;&#34;
-    def __init__(self, clingo_control, first_semiring, second_semiring, first_weights, second_weights, transform, queries):
-        logger.warning(&#34;TwoAlgebraicProgram may be removed in favor of the new NestedAlgebraicProgram in the future&#34;)
-        self.first_semiring = first_semiring
-        self.second_semiring = second_semiring
-        self.first_weights = first_weights
-        self.second_weights = second_weights
-        self.transform = transform
+    def __init__(self, clingo_control, semirings, weights_per_semiring, transforms, queries):
+        self.semirings = semirings
+        self.weights_per_semiring = weights_per_semiring
+        self.transforms = transforms
         self.queries = queries
         Program.__init__(self, clingo_control = clingo_control)
 
     def _finalize_cnf(self):
         weight_list = self.get_weights()
         varMap = { name : var for var, name in self._nameMap.items() }
-        first = set([ int(str(varMap[name])) for (name, _) in self.first_weights ])
-        second = set([ int(str(varMap[name])) for (name, _) in self.second_weights ])
-        self._cnf.quantified = [first, second]
+        # quantifiers
+        self._cnf.quantified = []
+        for cur_weights in self.weights_per_semiring:
+            cur_atoms = set([ int(str(varMap[name])) for (name, _) in cur_weights ])
+            self._cnf.quantified.append(cur_atoms)
+        # weights
         for v in range(self._cnf.nr_vars*2):
             self._cnf.weights[to_dimacs(v)] = weight_list[v]
-        self._cnf.transforms = [ self.transform ]
-        self._cnf.semirings = [ self.first_semiring, self.second_semiring ]
+        # rest
+        self._cnf.transforms = self.transforms
+        self._cnf.semirings = self.semirings
         # TODO figure out which variables we can mark as auxilliary
 
     def get_weights(self):
         query_cnt = max(len(self.get_queries()), 1)
-        first_shape = (query_cnt, ) + np.shape(self.first_semiring.one())
-        second_shape = (query_cnt, ) + np.shape(self.second_semiring.one())
+        shapes = [ (query_cnt, ) + np.shape(semiring.one()) for semiring in self.semirings ]
         varMap = { name : var for var, name in self._nameMap.items() }
-        weight_list = [ np.empty(second_shape, dtype=self.second_semiring.dtype) for _ in range(self._cnf.nr_vars*2) ]
+        # default initialize with innermost semirings one
+        weight_list = [ np.empty(shapes[-1], dtype=self.semirings[-1].dtype) for _ in range(self._cnf.nr_vars*2) ]
         for i in range(self._cnf.nr_vars*2):
-            weight_list[i][:] = self.second_semiring.one()
-        for (name, phase) in self.first_weights:
-            idx = to_pos(varMap[name])
-            if not phase:
-                idx = neg(idx)
-            weight_list[idx] = np.empty(first_shape, dtype=self.first_semiring.dtype)
-            weight_list[idx][:] = self.first_weights[(name, phase)]
-        for (name, phase) in self.second_weights:            
-            idx = to_pos(varMap[name])
-            if not phase:
-                idx = neg(idx)
-            weight_list[idx] = np.empty(second_shape, dtype=self.second_semiring.dtype)
-            weight_list[idx][:] = self.second_weights[(name, phase)]
+            weight_list[i][:] = self.semirings[-1].one()
+        for i, cur_weights in enumerate(self.weights_per_semiring):
+            for (name, phase) in cur_weights:
+                idx = to_pos(varMap[name])
+                if not phase:
+                    idx = neg(idx)
+                weight_list[idx] = np.empty(shapes[i], dtype=self.semirings[i].dtype)
+                weight_list[idx][:] = cur_weights[(name, phase)]
+                
+        
+        if len(self.get_queries()) == 0:
+            return weight_list
+        
+        # set the weights for the queries
+        var_to_val_type = [ len(self.semirings) - 1 for _ in range(self._cnf.nr_vars + 1) ]
+        for val_type, cur_weights in enumerate(self.weights_per_semiring):
+            for (name, _) in cur_weights:
+                var = int(str(varMap[name]))
+                var_to_val_type[var] = val_type
+                
         for i, query in enumerate(self.get_queries()):
-            if (query, True) in self.first_weights:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.first_semiring.zero()
-            else:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.second_semiring.zero()
+            var = int(str(varMap[query]))
+            val_type = var_to_val_type[var]
+            zero = self.semirings[val_type].zero()
+            weight_list[neg(to_pos(varMap[query]))][i] = zero
+            
         return weight_list
 
     def get_queries(self):
@@ -138,48 +137,40 @@ class TwoAlgebraicProgram(Program):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram"><code class="flex name class">
-<span>class <span class="ident">TwoAlgebraicProgram</span></span>
-<span>(</span><span>clingo_control, first_semiring, second_semiring, first_weights, second_weights, transform, queries)</span>
+<dt id="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram"><code class="flex name class">
+<span>class <span class="ident">NestedAlgebraicProgram</span></span>
+<span>(</span><span>clingo_control, semirings, weights_per_semiring, transforms, queries)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A class for programs with weights over two semirings. </p>
+<div class="desc"><p>A class for programs with weights over more than two semirings. </p>
 <p>This is supposed to be an abstract class in the sense that it should used and instantiated
 by subclasses, rather than parsed itself.</p>
 <p>Overrides the <code>get_weights</code>, <code>_finalize_cnf</code> and <code>get_queries</code> methods appropriately.</p>
 <h2 id="args">Args</h2>
 <p>clingo_control (:obj:<code>Control</code>): The clingo control object having the rules of the spanning program.
-first_semiring (:obj:<code>module</code>): The first semiring module.
-second_semiring (:obj:<code>module</code>): The second semiring module.
-first_weights (:obj:<code>dict</code>): The weights over the first semiring.
+semirings (:obj:<code>list[module]</code>): The list of semiring modules.
+weights (:obj:<code>list[dict]</code>): The list of weights over the semirings in order of the semirings.
 Needs to map pairs <code>(name, phase)</code>, where <code>name</code> is the name of an atom
 and <code>phase</code> is its polarity (<code>True</code> for true), to their weight.
-second_weights (:obj:<code>dict</code>): The weights over the second semiring.
-Needs to map pairs <code>(name, phase)</code>, where <code>name</code> is the name of an atom
-and <code>phase</code> is its polarity (<code>True</code> for true), to their weight.
-transform (:obj:<code>string</code>): A string representation of the function that transforms a value from the first
-into a value from the second semiring.
+transforms (:obj:<code>list[string]</code>): A list of string representations of the functions that transforms a value
+from the ith into a value from the (i-1)th semiring.
 queries (:obj:<code>list</code>): A list of names of atoms that should be queried.
 Specify the empty list for an overall weight query.</p>
 <h2 id="attributes">Attributes</h2>
-<p>first_semiring (:obj:<code>module</code>): The first semiring module.
-second_semiring (:obj:<code>module</code>): The second semiring module.
-first_weights (:obj:<code>dict</code>): The weights over the first semiring.
+<p>semirings (:obj:<code>list[module]</code>): The list of semiring modules.
+weights (:obj:<code>list[dict]</code>): The list of weights over the semirings in order of the semirings.
 Needs to map pairs <code>(name, phase)</code>, where <code>name</code> is the name of an atom
 and <code>phase</code> is its polarity (<code>True</code> for true), to their weight.
-second_weights (:obj:<code>dict</code>): The weights over the second semiring.
-Needs to map pairs <code>(name, phase)</code>, where <code>name</code> is the name of an atom
-and <code>phase</code> is its polarity (<code>True</code> for true), to their weight.
-transform (:obj:<code>string</code>): A string representation of the function that transforms a value from the first
-into a value from the second semiring.
+transforms (:obj:<code>list[string]</code>): A list of string representations of the functions that transforms a value
+from the ith into a value from the (i-1)th semiring.
 queries (:obj:<code>list</code>): A list of names of atoms that should be queried.
 Specify the empty list for an overall weight query.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TwoAlgebraicProgram(Program):    
-    &#34;&#34;&#34;A class for programs with weights over two semirings. 
+<pre><code class="python">class NestedAlgebraicProgram(Program):    
+    &#34;&#34;&#34;A class for programs with weights over more than two semirings. 
 
     This is supposed to be an abstract class in the sense that it should used and instantiated
     by subclasses, rather than parsed itself.
@@ -188,80 +179,81 @@ Specify the empty list for an overall weight query.</p></div>
 
     Args:
         clingo_control (:obj:`Control`): The clingo control object having the rules of the spanning program.
-        first_semiring (:obj:`module`): The first semiring module.
-        second_semiring (:obj:`module`): The second semiring module.
-        first_weights (:obj:`dict`): The weights over the first semiring. 
+        semirings (:obj:`list[module]`): The list of semiring modules.
+        weights (:obj:`list[dict]`): The list of weights over the semirings in order of the semirings. 
             Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
             and `phase` is its polarity (`True` for true), to their weight.
-        second_weights (:obj:`dict`): The weights over the second semiring. 
-            Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
-            and `phase` is its polarity (`True` for true), to their weight.
-        transform (:obj:`string`): A string representation of the function that transforms a value from the first
-            into a value from the second semiring.
+        transforms (:obj:`list[string]`): A list of string representations of the functions that transforms a value 
+            from the ith into a value from the (i-1)th semiring.
         queries (:obj:`list`): A list of names of atoms that should be queried. 
             Specify the empty list for an overall weight query.
 
     Attributes:
-        first_semiring (:obj:`module`): The first semiring module.
-        second_semiring (:obj:`module`): The second semiring module.
-        first_weights (:obj:`dict`): The weights over the first semiring. 
+        semirings (:obj:`list[module]`): The list of semiring modules.
+        weights (:obj:`list[dict]`): The list of weights over the semirings in order of the semirings. 
             Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
             and `phase` is its polarity (`True` for true), to their weight.
-        second_weights (:obj:`dict`): The weights over the second semiring. 
-            Needs to map pairs `(name, phase)`, where `name` is the name of an atom 
-            and `phase` is its polarity (`True` for true), to their weight.
-        transform (:obj:`string`): A string representation of the function that transforms a value from the first
-            into a value from the second semiring.
+        transforms (:obj:`list[string]`): A list of string representations of the functions that transforms a value 
+            from the ith into a value from the (i-1)th semiring.
         queries (:obj:`list`): A list of names of atoms that should be queried. 
             Specify the empty list for an overall weight query.
     &#34;&#34;&#34;
-    def __init__(self, clingo_control, first_semiring, second_semiring, first_weights, second_weights, transform, queries):
-        logger.warning(&#34;TwoAlgebraicProgram may be removed in favor of the new NestedAlgebraicProgram in the future&#34;)
-        self.first_semiring = first_semiring
-        self.second_semiring = second_semiring
-        self.first_weights = first_weights
-        self.second_weights = second_weights
-        self.transform = transform
+    def __init__(self, clingo_control, semirings, weights_per_semiring, transforms, queries):
+        self.semirings = semirings
+        self.weights_per_semiring = weights_per_semiring
+        self.transforms = transforms
         self.queries = queries
         Program.__init__(self, clingo_control = clingo_control)
 
     def _finalize_cnf(self):
         weight_list = self.get_weights()
         varMap = { name : var for var, name in self._nameMap.items() }
-        first = set([ int(str(varMap[name])) for (name, _) in self.first_weights ])
-        second = set([ int(str(varMap[name])) for (name, _) in self.second_weights ])
-        self._cnf.quantified = [first, second]
+        # quantifiers
+        self._cnf.quantified = []
+        for cur_weights in self.weights_per_semiring:
+            cur_atoms = set([ int(str(varMap[name])) for (name, _) in cur_weights ])
+            self._cnf.quantified.append(cur_atoms)
+        # weights
         for v in range(self._cnf.nr_vars*2):
             self._cnf.weights[to_dimacs(v)] = weight_list[v]
-        self._cnf.transforms = [ self.transform ]
-        self._cnf.semirings = [ self.first_semiring, self.second_semiring ]
+        # rest
+        self._cnf.transforms = self.transforms
+        self._cnf.semirings = self.semirings
         # TODO figure out which variables we can mark as auxilliary
 
     def get_weights(self):
         query_cnt = max(len(self.get_queries()), 1)
-        first_shape = (query_cnt, ) + np.shape(self.first_semiring.one())
-        second_shape = (query_cnt, ) + np.shape(self.second_semiring.one())
+        shapes = [ (query_cnt, ) + np.shape(semiring.one()) for semiring in self.semirings ]
         varMap = { name : var for var, name in self._nameMap.items() }
-        weight_list = [ np.empty(second_shape, dtype=self.second_semiring.dtype) for _ in range(self._cnf.nr_vars*2) ]
+        # default initialize with innermost semirings one
+        weight_list = [ np.empty(shapes[-1], dtype=self.semirings[-1].dtype) for _ in range(self._cnf.nr_vars*2) ]
         for i in range(self._cnf.nr_vars*2):
-            weight_list[i][:] = self.second_semiring.one()
-        for (name, phase) in self.first_weights:
-            idx = to_pos(varMap[name])
-            if not phase:
-                idx = neg(idx)
-            weight_list[idx] = np.empty(first_shape, dtype=self.first_semiring.dtype)
-            weight_list[idx][:] = self.first_weights[(name, phase)]
-        for (name, phase) in self.second_weights:            
-            idx = to_pos(varMap[name])
-            if not phase:
-                idx = neg(idx)
-            weight_list[idx] = np.empty(second_shape, dtype=self.second_semiring.dtype)
-            weight_list[idx][:] = self.second_weights[(name, phase)]
+            weight_list[i][:] = self.semirings[-1].one()
+        for i, cur_weights in enumerate(self.weights_per_semiring):
+            for (name, phase) in cur_weights:
+                idx = to_pos(varMap[name])
+                if not phase:
+                    idx = neg(idx)
+                weight_list[idx] = np.empty(shapes[i], dtype=self.semirings[i].dtype)
+                weight_list[idx][:] = cur_weights[(name, phase)]
+                
+        
+        if len(self.get_queries()) == 0:
+            return weight_list
+        
+        # set the weights for the queries
+        var_to_val_type = [ len(self.semirings) - 1 for _ in range(self._cnf.nr_vars + 1) ]
+        for val_type, cur_weights in enumerate(self.weights_per_semiring):
+            for (name, _) in cur_weights:
+                var = int(str(varMap[name]))
+                var_to_val_type[var] = val_type
+                
         for i, query in enumerate(self.get_queries()):
-            if (query, True) in self.first_weights:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.first_semiring.zero()
-            else:
-                weight_list[neg(to_pos(varMap[query]))][i] = self.second_semiring.zero()
+            var = int(str(varMap[query]))
+            val_type = var_to_val_type[var]
+            zero = self.semirings[val_type].zero()
+            weight_list[neg(to_pos(varMap[query]))][i] = zero
+            
         return weight_list
 
     def get_queries(self):
@@ -273,9 +265,8 @@ Specify the empty list for an overall weight query.</p></div>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="aspmc.programs.mapprogram.MAPProblogProgram" href="mapprogram.html#aspmc.programs.mapprogram.MAPProblogProgram">MAPProblogProgram</a></li>
-<li><a title="aspmc.programs.meuprogram.MEUProblogProgram" href="meuprogram.html#aspmc.programs.meuprogram.MEUProblogProgram">MEUProblogProgram</a></li>
-<li><a title="aspmc.programs.smprogram.SMProblogProgram" href="smprogram.html#aspmc.programs.smprogram.SMProblogProgram">SMProblogProgram</a></li>
+<li><a title="aspmc.programs.credalprogram.CredalProgram" href="credalprogram.html#aspmc.programs.credalprogram.CredalProgram">CredalProgram</a></li>
+<li><a title="aspmc.programs.dtpasprogram.DTPASProgram" href="dtpasprogram.html#aspmc.programs.dtpasprogram.DTPASProgram">DTPASProgram</a></li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -314,7 +305,7 @@ Specify the empty list for an overall weight query.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram" href="#aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram">TwoAlgebraicProgram</a></code></h4>
+<h4><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram" href="#aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram">NestedAlgebraicProgram</a></code></h4>
 </li>
 </ul>
 </li>

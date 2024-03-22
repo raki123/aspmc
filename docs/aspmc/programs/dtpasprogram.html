@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>aspmc.programs.meuprogram API documentation</title>
-<meta name="description" content="Maximum Expected Utility Program module specializing the TwoAlgebraicProgam class." />
+<title>aspmc.programs.dtpasprogram API documentation</title>
+<meta name="description" content="Maximum Expected Utility ASProgram module specializing the NestedAlgebraicProgam class." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -19,10 +19,10 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>aspmc.programs.meuprogram</code></h1>
+<h1 class="title">Module <code>aspmc.programs.dtpasprogram</code></h1>
 </header>
 <section id="section-intro">
-<p>Maximum Expected Utility Program module specializing the TwoAlgebraicProgam class.</p>
+<p>Maximum Expected Utility ASProgram module specializing the NestedAlgebraicProgam class.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -30,25 +30,26 @@
 <pre><code class="python">#!/usr/bin/env python3
 
 &#34;&#34;&#34;
-Maximum Expected Utility Program module specializing the TwoAlgebraicProgam class.
+Maximum Expected Utility ASProgram module specializing the NestedAlgebraicProgam class.
 &#34;&#34;&#34;
 import logging
 
 from aspmc.parsing.clingoparser.clingoext import Control
 
 from aspmc.programs.problogprogram import ProblogProgram
-from aspmc.programs.twoalgebraicprogram import TwoAlgebraicProgram
+from aspmc.programs.nestedalgebraicprogram import NestedAlgebraicProgram
 from lark import Lark
 from aspmc.parsing.lark_parser import GRAMMAR, ProblogTransformer
 from aspmc.util import *
 
-import aspmc.semirings.maxplusdecisions as first_semiring
-import aspmc.semirings.grad as second_semiring # the gradient semiring and the expected utility are the same
+import aspmc.semirings.maxmaxplusdecisions as first_semiring
+import aspmc.semirings.twograd as second_semiring # the gradient semiring and the expected utility are the same
+import aspmc.semirings.minmaxplus as third_semiring 
 import aspmc.semirings.probabilistic as semiring
 
 logger = logging.getLogger(&#34;aspmc&#34;)
 
-class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
+class DTPASProgram(NestedAlgebraicProgram, ProblogProgram):
     &#34;&#34;&#34;A class for Maximum Expected Utility programs. 
 
     The syntax for these programs is the same as for ProbLog in MEU mode. 
@@ -94,13 +95,14 @@ class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
         # weights for the maxplus semiring
         first_semiring.names = [ name for name in self.decisions ]
         for i,name in enumerate(self.decisions):
-            first_weight_list[(name, True)] = first_semiring.MaxPlusFloat(0, 2**i)
+            first_weight_list[(name, True)] = first_semiring.MinMaxPlusFloat((0, 0), (2**i, 2**i))
             first_weight_list[(name, False)] = first_semiring.one()
         # weights for the expected utility semiring
         second_weight_list = {}
         for name in self.weights:
             second_weight_list[(name, True)] = [self.weights[name], 0.0]
             second_weight_list[(name, False)] = [1.0 - self.weights[name], 0.0]
+        third_weight_list = {}
         for (name, phase) in self.utilities:
             if (name, phase) in second_weight_list:
                 if (name, phase) in first_weight_list:
@@ -108,11 +110,17 @@ class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
                     exit(-1)
                 second_weight_list[(name, phase)][1] = second_weight_list[(name, phase)][0]*self.utilities[(name, phase)]
             elif (name, phase) in first_weight_list:
-                first_weight_list[(name, phase)].value = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[0] = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[1] = self.utilities[(name, phase)]
             else:
-                second_weight_list[(name, phase)] = (1.0, self.utilities[(name, phase)])
-        second_weight_list = { i : second_semiring.parse(f&#34;({w[0]},{w[1]})&#34;) for (i, w) in second_weight_list.items() }
-        TwoAlgebraicProgram.__init__(self, clingo_control, first_semiring, second_semiring, first_weight_list, second_weight_list, &#34;lambda w : w.value[1]&#34;, self.queries)
+                third_weight_list[(name, phase)] = self.utilities[(name, phase)]
+        second_weight_list = { i : second_semiring.parse(f&#34;({w[0]},{w[1]},{w[1]})&#34;) for (i, w) in second_weight_list.items() }
+        third_weight_list = { i : third_semiring.parse(f&#34;({w},{w})&#34;) for (i, w) in third_weight_list.items() }
+
+        semirings = [ first_semiring, second_semiring, third_semiring ]
+        weights_per_semiring = [ first_weight_list, second_weight_list, third_weight_list ]
+        transforms = [ &#34;lambda w : (w.value[1], w.value[2])&#34;, &#34;lambda w : (1.0, w.value[0], w.value[1])&#34; ]
+        NestedAlgebraicProgram.__init__(self, clingo_control, semirings, weights_per_semiring, transforms, self.queries)
 
     def _prepare_grounding(self, program):
         new_program = []
@@ -158,31 +166,6 @@ class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
             result += &#34;.\n&#34;
         for query in self.queries:
             result += f&#34;query({query}).\n&#34;
-        return result
-
-    def to_pita(self):
-        result = &#34;&#34;&#34;:- use_module(library(pita)).
-:- pita.
-:- begin_lpad.
-&#34;&#34;&#34;
-        for v in self._guess:
-            if self._internal_name(v) in self.decisions:
-                result += f&#34;? :: {self._external_name(v)}.\n&#34;
-            else:
-                result += f&#34;{self.weights[self._internal_name(v)]}::{self._external_name(v)}.\n&#34;
-        for (name, phase) in self.utilities:
-            if phase:
-                result += &#34;utility(&#34;
-                result += f&#34;{name}, {self.utilities[(name, phase)]}).\n&#34;
-        for r in self._program:
-            result += &#34;;&#34;.join([self._external_name(v) for v in r.head])
-            if len(r.body) &gt; 0:
-                result += &#34; :- &#34;
-                result += &#34;,&#34;.join([(&#34;\\+&#34; if v &lt; 0 else &#34;&#34;) + self._external_name(abs(v)) for v in r.body])
-            result += &#34;.\n&#34;
-        for query in self.queries:
-            result += f&#34;query({query}).\n&#34;
-        result += &#34;:- end_lpad.&#34;
         return result</code></pre>
 </details>
 </section>
@@ -195,8 +178,8 @@ class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="aspmc.programs.meuprogram.MEUProblogProgram"><code class="flex name class">
-<span>class <span class="ident">MEUProblogProgram</span></span>
+<dt id="aspmc.programs.dtpasprogram.DTPASProgram"><code class="flex name class">
+<span>class <span class="ident">DTPASProgram</span></span>
 <span>(</span><span>program_str, program_files)</span>
 </code></dt>
 <dd>
@@ -216,7 +199,7 @@ MEU ProbLog syntax that should be included. May be an empty list.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MEUProblogProgram(TwoAlgebraicProgram, ProblogProgram):
+<pre><code class="python">class DTPASProgram(NestedAlgebraicProgram, ProblogProgram):
     &#34;&#34;&#34;A class for Maximum Expected Utility programs. 
 
     The syntax for these programs is the same as for ProbLog in MEU mode. 
@@ -262,13 +245,14 @@ MEU ProbLog syntax that should be included. May be an empty list.</p></div>
         # weights for the maxplus semiring
         first_semiring.names = [ name for name in self.decisions ]
         for i,name in enumerate(self.decisions):
-            first_weight_list[(name, True)] = first_semiring.MaxPlusFloat(0, 2**i)
+            first_weight_list[(name, True)] = first_semiring.MinMaxPlusFloat((0, 0), (2**i, 2**i))
             first_weight_list[(name, False)] = first_semiring.one()
         # weights for the expected utility semiring
         second_weight_list = {}
         for name in self.weights:
             second_weight_list[(name, True)] = [self.weights[name], 0.0]
             second_weight_list[(name, False)] = [1.0 - self.weights[name], 0.0]
+        third_weight_list = {}
         for (name, phase) in self.utilities:
             if (name, phase) in second_weight_list:
                 if (name, phase) in first_weight_list:
@@ -276,11 +260,17 @@ MEU ProbLog syntax that should be included. May be an empty list.</p></div>
                     exit(-1)
                 second_weight_list[(name, phase)][1] = second_weight_list[(name, phase)][0]*self.utilities[(name, phase)]
             elif (name, phase) in first_weight_list:
-                first_weight_list[(name, phase)].value = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[0] = self.utilities[(name, phase)]
+                first_weight_list[(name, phase)].value[1] = self.utilities[(name, phase)]
             else:
-                second_weight_list[(name, phase)] = (1.0, self.utilities[(name, phase)])
-        second_weight_list = { i : second_semiring.parse(f&#34;({w[0]},{w[1]})&#34;) for (i, w) in second_weight_list.items() }
-        TwoAlgebraicProgram.__init__(self, clingo_control, first_semiring, second_semiring, first_weight_list, second_weight_list, &#34;lambda w : w.value[1]&#34;, self.queries)
+                third_weight_list[(name, phase)] = self.utilities[(name, phase)]
+        second_weight_list = { i : second_semiring.parse(f&#34;({w[0]},{w[1]},{w[1]})&#34;) for (i, w) in second_weight_list.items() }
+        third_weight_list = { i : third_semiring.parse(f&#34;({w},{w})&#34;) for (i, w) in third_weight_list.items() }
+
+        semirings = [ first_semiring, second_semiring, third_semiring ]
+        weights_per_semiring = [ first_weight_list, second_weight_list, third_weight_list ]
+        transforms = [ &#34;lambda w : (w.value[1], w.value[2])&#34;, &#34;lambda w : (1.0, w.value[0], w.value[1])&#34; ]
+        NestedAlgebraicProgram.__init__(self, clingo_control, semirings, weights_per_semiring, transforms, self.queries)
 
     def _prepare_grounding(self, program):
         new_program = []
@@ -326,93 +316,30 @@ MEU ProbLog syntax that should be included. May be an empty list.</p></div>
             result += &#34;.\n&#34;
         for query in self.queries:
             result += f&#34;query({query}).\n&#34;
-        return result
-
-    def to_pita(self):
-        result = &#34;&#34;&#34;:- use_module(library(pita)).
-:- pita.
-:- begin_lpad.
-&#34;&#34;&#34;
-        for v in self._guess:
-            if self._internal_name(v) in self.decisions:
-                result += f&#34;? :: {self._external_name(v)}.\n&#34;
-            else:
-                result += f&#34;{self.weights[self._internal_name(v)]}::{self._external_name(v)}.\n&#34;
-        for (name, phase) in self.utilities:
-            if phase:
-                result += &#34;utility(&#34;
-                result += f&#34;{name}, {self.utilities[(name, phase)]}).\n&#34;
-        for r in self._program:
-            result += &#34;;&#34;.join([self._external_name(v) for v in r.head])
-            if len(r.body) &gt; 0:
-                result += &#34; :- &#34;
-                result += &#34;,&#34;.join([(&#34;\\+&#34; if v &lt; 0 else &#34;&#34;) + self._external_name(abs(v)) for v in r.body])
-            result += &#34;.\n&#34;
-        for query in self.queries:
-            result += f&#34;query({query}).\n&#34;
-        result += &#34;:- end_lpad.&#34;
         return result</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram" href="twoalgebraicprogram.html#aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram">TwoAlgebraicProgram</a></li>
+<li><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram" href="nestedalgebraicprogram.html#aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram">NestedAlgebraicProgram</a></li>
 <li><a title="aspmc.programs.problogprogram.ProblogProgram" href="problogprogram.html#aspmc.programs.problogprogram.ProblogProgram">ProblogProgram</a></li>
 <li><a title="aspmc.programs.program.Program" href="program.html#aspmc.programs.program.Program">Program</a></li>
 </ul>
-<h3>Methods</h3>
-<dl>
-<dt id="aspmc.programs.meuprogram.MEUProblogProgram.to_pita"><code class="name flex">
-<span>def <span class="ident">to_pita</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">    def to_pita(self):
-        result = &#34;&#34;&#34;:- use_module(library(pita)).
-:- pita.
-:- begin_lpad.
-&#34;&#34;&#34;
-        for v in self._guess:
-            if self._internal_name(v) in self.decisions:
-                result += f&#34;? :: {self._external_name(v)}.\n&#34;
-            else:
-                result += f&#34;{self.weights[self._internal_name(v)]}::{self._external_name(v)}.\n&#34;
-        for (name, phase) in self.utilities:
-            if phase:
-                result += &#34;utility(&#34;
-                result += f&#34;{name}, {self.utilities[(name, phase)]}).\n&#34;
-        for r in self._program:
-            result += &#34;;&#34;.join([self._external_name(v) for v in r.head])
-            if len(r.body) &gt; 0:
-                result += &#34; :- &#34;
-                result += &#34;,&#34;.join([(&#34;\\+&#34; if v &lt; 0 else &#34;&#34;) + self._external_name(abs(v)) for v in r.body])
-            result += &#34;.\n&#34;
-        for query in self.queries:
-            result += f&#34;query({query}).\n&#34;
-        result += &#34;:- end_lpad.&#34;
-        return result</code></pre>
-</details>
-</dd>
-</dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram" href="twoalgebraicprogram.html#aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram">TwoAlgebraicProgram</a></b></code>:
+<li><code><b><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram" href="nestedalgebraicprogram.html#aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram">NestedAlgebraicProgram</a></b></code>:
 <ul class="hlist">
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.choose_clark_completion" href="program.html#aspmc.programs.program.Program.choose_clark_completion">choose_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.clark_completion" href="program.html#aspmc.programs.program.Program.clark_completion">clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.encoding_stats" href="program.html#aspmc.programs.program.Program.encoding_stats">encoding_stats</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_cnf" href="program.html#aspmc.programs.program.Program.get_cnf">get_cnf</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_queries" href="program.html#aspmc.programs.program.Program.get_queries">get_queries</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.get_weights" href="program.html#aspmc.programs.program.Program.get_weights">get_weights</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.td_guided_both_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_both_clark_completion">td_guided_both_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.td_guided_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_clark_completion">td_guided_clark_completion</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.tpUnfold" href="program.html#aspmc.programs.program.Program.tpUnfold">tpUnfold</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.treeprocess" href="program.html#aspmc.programs.program.Program.treeprocess">treeprocess</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.write_dimacs" href="program.html#aspmc.programs.program.Program.write_dimacs">write_dimacs</a></code></li>
-<li><code><a title="aspmc.programs.twoalgebraicprogram.TwoAlgebraicProgram.write_prog" href="program.html#aspmc.programs.program.Program.write_prog">write_prog</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.choose_clark_completion" href="program.html#aspmc.programs.program.Program.choose_clark_completion">choose_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.clark_completion" href="program.html#aspmc.programs.program.Program.clark_completion">clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.encoding_stats" href="program.html#aspmc.programs.program.Program.encoding_stats">encoding_stats</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_cnf" href="program.html#aspmc.programs.program.Program.get_cnf">get_cnf</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_queries" href="program.html#aspmc.programs.program.Program.get_queries">get_queries</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.get_weights" href="program.html#aspmc.programs.program.Program.get_weights">get_weights</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.td_guided_both_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_both_clark_completion">td_guided_both_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.td_guided_clark_completion" href="program.html#aspmc.programs.program.Program.td_guided_clark_completion">td_guided_clark_completion</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.tpUnfold" href="program.html#aspmc.programs.program.Program.tpUnfold">tpUnfold</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.treeprocess" href="program.html#aspmc.programs.program.Program.treeprocess">treeprocess</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.write_dimacs" href="program.html#aspmc.programs.program.Program.write_dimacs">write_dimacs</a></code></li>
+<li><code><a title="aspmc.programs.nestedalgebraicprogram.NestedAlgebraicProgram.write_prog" href="program.html#aspmc.programs.program.Program.write_prog">write_prog</a></code></li>
 </ul>
 </li>
 </ul>
@@ -434,10 +361,7 @@ MEU ProbLog syntax that should be included. May be an empty list.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="aspmc.programs.meuprogram.MEUProblogProgram" href="#aspmc.programs.meuprogram.MEUProblogProgram">MEUProblogProgram</a></code></h4>
-<ul class="">
-<li><code><a title="aspmc.programs.meuprogram.MEUProblogProgram.to_pita" href="#aspmc.programs.meuprogram.MEUProblogProgram.to_pita">to_pita</a></code></li>
-</ul>
+<h4><code><a title="aspmc.programs.dtpasprogram.DTPASProgram" href="#aspmc.programs.dtpasprogram.DTPASProgram">DTPASProgram</a></code></h4>
 </li>
 </ul>
 </li>

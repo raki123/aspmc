@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>aspmc.parsing.clingoparser.sign API documentation</title>
+<title>aspmc.semirings.credal API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,14 +19,39 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>aspmc.parsing.clingoparser.sign</code></h1>
+<h1 class="title">Module <code>aspmc.semirings.credal</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from clingo.ast import Sign # pylint: disable=import-error, unused-import, no-name-in-module</code></pre>
+<pre><code class="python">import numpy as np
+
+def parse(value, atom = None):
+    value = value[1:-1]
+    value = value.split(&#39;,&#39;)
+    return np.array([float(value[0]), float(value[1])])
+
+def from_value(value):
+    return np.array(value)
+
+def negate(value):
+    return value.copy()
+
+def to_string(value):
+    return f&#34;{value[0]} &lt;= p &lt;= {value[1]}&#34;
+
+def is_idempotent():
+    return False
+
+def zero():
+    return np.array([0.0, 0.0])
+def one():
+    return np.array([1.0, 1.0])
+    
+dtype = float
+pattern = &#39;[(][0-9]+[,][0-9]+[)]&#39;</code></pre>
 </details>
 </section>
 <section>
@@ -34,6 +59,102 @@
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="aspmc.semirings.credal.from_value"><code class="name flex">
+<span>def <span class="ident">from_value</span></span>(<span>value)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_value(value):
+    return np.array(value)</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.is_idempotent"><code class="name flex">
+<span>def <span class="ident">is_idempotent</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_idempotent():
+    return False</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.negate"><code class="name flex">
+<span>def <span class="ident">negate</span></span>(<span>value)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def negate(value):
+    return value.copy()</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.one"><code class="name flex">
+<span>def <span class="ident">one</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def one():
+    return np.array([1.0, 1.0])</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.parse"><code class="name flex">
+<span>def <span class="ident">parse</span></span>(<span>value, atom=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse(value, atom = None):
+    value = value[1:-1]
+    value = value.split(&#39;,&#39;)
+    return np.array([float(value[0]), float(value[1])])</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.to_string"><code class="name flex">
+<span>def <span class="ident">to_string</span></span>(<span>value)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_string(value):
+    return f&#34;{value[0]} &lt;= p &lt;= {value[1]}&#34;</code></pre>
+</details>
+</dd>
+<dt id="aspmc.semirings.credal.zero"><code class="name flex">
+<span>def <span class="ident">zero</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def zero():
+    return np.array([0.0, 0.0])</code></pre>
+</details>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -46,7 +167,18 @@
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="aspmc.parsing.clingoparser" href="index.html">aspmc.parsing.clingoparser</a></code></li>
+<li><code><a title="aspmc.semirings" href="index.html">aspmc.semirings</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="aspmc.semirings.credal.from_value" href="#aspmc.semirings.credal.from_value">from_value</a></code></li>
+<li><code><a title="aspmc.semirings.credal.is_idempotent" href="#aspmc.semirings.credal.is_idempotent">is_idempotent</a></code></li>
+<li><code><a title="aspmc.semirings.credal.negate" href="#aspmc.semirings.credal.negate">negate</a></code></li>
+<li><code><a title="aspmc.semirings.credal.one" href="#aspmc.semirings.credal.one">one</a></code></li>
+<li><code><a title="aspmc.semirings.credal.parse" href="#aspmc.semirings.credal.parse">parse</a></code></li>
+<li><code><a title="aspmc.semirings.credal.to_string" href="#aspmc.semirings.credal.to_string">to_string</a></code></li>
+<li><code><a title="aspmc.semirings.credal.zero" href="#aspmc.semirings.credal.zero">zero</a></code></li>
 </ul>
 </li>
 </ul>
