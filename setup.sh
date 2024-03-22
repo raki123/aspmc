@@ -7,14 +7,12 @@ then
     echo -e "${RED}python 3.6 or higher is required!${NC}";
 else
     pkgs='libboost-all-dev libc6:i386 build-essential zlib1g-dev libmpfr-dev libgmp-dev cmake'
-    install=false
     for pkg in $pkgs; do
         status="$(dpkg-query -W --showformat='${db:Status-Status}' "$pkg" 2>&1)"
         if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
              echo -e "${RED} Missing package $pkg. ${NC}" 
 	     echo -e "${GREEN} Installing missing packages. ${NC}"
              sudo apt install $pkg
-        break
         fi
     done
     echo -e "${GREEN} Installing python modules. ${NC}"
@@ -62,27 +60,15 @@ else
         echo -e "${GREEN} Compiling UWrMaxSAT. ${NC}"
         cd aspmc/external/UWrMaxSAT/
         rm -rf cominisatps
-        rm -rf 'COMiniSatPS Chandrasekhar DRUP'
-        rm -rf COMiniSatPSChandrasekharDRUP.zip
-        rm -rf COMiniSatPSChandrasekharDRUP.zip.1
         rm -rf maxpre
         cd uwrmaxsat
         git clean -fdx
         cd ..
-        #* 2.1 get COMiniSatPSChandrasekharDRUP.zip:  
-        wget --no-check-certificate https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip  
-        #* 2.2 unzip and move:  
-        unzip COMiniSatPSChandrasekharDRUP.zip  
-        mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .  
-        #* 2.3 apply uwrmaxsat/cominisatps.patch:  
-        cd cominisatps  
-        patch -p1 <../uwrmaxsat/cominisatps.patch  
-        #* 2.4 compile the SAT solver library:  
-        cd simp  
-        MROOT=.. make libr  
-        cd ..  
-        mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
-
+        git clone https://github.com/marekpiotrow/cominisatps
+        cd cominisatps
+        rm core simp mtl utils && ln -s minisat/core minisat/simp minisat/mtl minisat/utils .
+        make lr
+        cd ..
         #3. build the MaxPre preprocessor (if you want to use it - see Comments below):  
         #* 3.1 clone the MaxPre repository:  
         git clone https://github.com/Laakeri/maxpre  
