@@ -224,6 +224,8 @@ class Circuit(object):
             line = line.decode().strip().split()
             if line[0] == 'c':
                 continue
+            if line[0] == 's':
+                continue
             mem.append(np.empty(shape, dtype = dtype))
             if line[0] == 'L':
                 mem[idx][:] = weights[to_pos(int(line[1]))]
